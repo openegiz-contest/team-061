@@ -1,43 +1,114 @@
-# <Team name>: a digital mine on OpenEgiz
+# Цифровой рудник «Кенташ» на OpenEgiz
 
-> Team Repository of the contest “Digital Mine on OpenEgiz”. **Replace the contents of this file with the instructions for your Submission.** The AI Jury runs the Submission strictly by these instructions, from scratch, in the Judge Environment. Accepted languages: English, Kazakh, Russian.
+Конкурсный демонстрационный двойник вымышленного открытого медного карьера и обогатительной фабрики. Команда **DBA**. Версия описания: 15 октября 2026 года.
 
-> **Start with the Concept**, the first section of [SUBMISSION.md](SUBMISSION.md): the Team writes it before any code. What AI agents build from this Template without a Concept is the Default Solution, published on the [contest site](https://openegiz-contest.github.io/) as the low bar: a Submission that does not go beyond it gets low levels in the Rubric. AI agents read [AGENTS.md](AGENTS.md).
+Модель связывает добычу, транспорт, качество руды, переработку, концентрат, воду, энергоснабжение, персонал, ремонты и экономику. Объекты представлены в Eclipse Ditto. Симулятор передаёт состояние через MQTT, интерфейс получает начальные данные и события из Ditto, команды возвращаются через двойник `control`.
 
-## Running
+В текущем стенде 701 двойник, 468 записей реестра активов, включая персональные GPS-метки, и 130 обезличенных сотрудников двух смен. Это состав версии, а не гарантия числа при будущих изменениях. Количество активов не равно количеству машин.
 
-Requirements (Docker, `make`, Windows/WSL2 setup) are in [OPENEGIZ.md](OPENEGIZ.md) / [OPENEGIZ.ru.md](OPENEGIZ.ru.md).
+- [Замысел, модули, сценарии и ограничения](SUBMISSION.md)
+- [Конкурсная презентация PDF](presentation.pdf), [редактируемая версия](presentation.pptx)
+- [Данные, источники и лицензии](DATA_LICENSES.md)
+- [Документация платформы](OPENEGIZ.ru.md)
+
+## Запуск с нуля
+
+Целевая среда: Ubuntu 24.04 amd64 с работающим Docker Engine и Docker Compose v2.20 или новее. Для конкурсной проверки ориентир — 8 vCPU, 16 ГиБ RAM и диск 60 ГБ. Нужен интернет для образов и зависимостей при сборке. Все данные модели и файлы Three.js уже находятся в репозитории. Внешние платные API, ключи ИИ и отдельный EAM-сервис не нужны.
+
+После клонирования репозитория откройте терминал **в его корне**, где находятся `Makefile` и этот README. В окружении судьи Docker уже установлен. Установите недостающие утилиты и запустите:
 
 ```bash
-sudo apt install -y make   # if make is missing (clean Ubuntu)
-make up            # the OpenEgiz platform
-make example-mine  # the Example Mine: twins, simulator, dashboard
+sudo apt-get update
+sudo apt-get install -y make curl git
+docker info > /dev/null
+docker compose version
+make mine
 ```
 
-Replace these commands with the commands of your Submission. The Submission must start by following these instructions without manual intervention (Rules, clause 6.4); downloading datasets and models and building are also listed here.
+`make mine` генерирует локальные пароли в `deploy/compose/.env`, поднимает OpenEgiz, собирает симулятор из `mine/sim`, запускает веб-стенд и ждёт появления двойников. Отдельная установка Python-пакетов на хосте для запуска не нужна. Не используйте `make install`: это другой путь развёртывания платформы через Kubernetes/Helm.
 
-## What to open
+Длительность первого запуска зависит от загрузки образов и сборки. Чистый запуск из клона репозитория команды (пустые тома, новые пароли, команда `make mine`) проверен 19 октября 2026 на машине разработки: 190 секунд при готовых образах Docker, затем ещё около минуты до появления всех двойников. Загрузка образов с нуля и запуск в эталонной виртуальной машине отдельно не проверялись; их время зависит от сети.
 
-- Grafana: the address and login are printed by `make up`.
-- <where to see the mine visualization, which dashboards>
-
-## Repository contents
-
-| Path | Contents |
+| Сервис | Адрес по умолчанию |
 |---|---|
-| `team/` | Directory for the Team's code. Using it is optional: any part may be changed, including the platform core |
-| `SUBMISSION.md` | Description of the Submission: **required** |
-| `presentation.pdf` | Presentation: **required**, in the repository root |
-| `AGENTS.md`, `CLAUDE.md` | Instructions for your AI agents (Codex, Claude Code and others read them automatically) |
-| `examples/mine/` | The Example Mine: shows how a digital mine is built on OpenEgiz. It is not a basis for the Submission |
-| `OPENEGIZ.md`, `OPENEGIZ.ru.md` | Documentation of the OpenEgiz platform v1.0.4 |
+| Основной стенд | http://localhost:8200 |
+| Grafana, история и приложение OpenEgiz | http://localhost:3000 |
+| Ditto API | http://localhost:8080/api/2 |
 
-The Submission is the `main` branch at the moment of the Freeze; other branches are not evaluated.
+Стенд получает доступ к Ditto через свой серверный прокси. Для Grafana пользователь `admin`, пароль задан переменной `GRAFANA_ADMIN_PASSWORD` в локальном `deploy/compose/.env`. Для прямого API Ditto пользователь `ditto`, пароль — `DITTO_PASSWORD` из того же файла. Не публикуйте `.env` и не заменяйте его при сохранённых томах: они уже используют созданные пароли.
 
-## License
+## Признаки готовности и диагностика
 
-The Submission is distributed under the MIT license, see [LICENSE](LICENSE). Copyright belongs to the Team: add the line `Copyright (c) 2026 <Team members>` to `LICENSE`.
+```bash
+make ps
+curl --fail --silent http://localhost:8200/ditto/api/2/search/things/count?namespaces=kz.kentash
+docker compose -f deploy/compose/docker-compose.yml -f mine/compose.yml exec -T kentash-sim python healthcheck.py
+```
 
----
+В интерфейсе должен появиться статус «поток Ditto», модельное время и заполненные карточки. Отдельные второстепенные показатели обновляются реже движения техники. Число двойников само по себе не подтверждает свежесть телеметрии: учитывайте статус связи и сообщения о сохранении.
 
-Platform: [aleka07/openegiz](https://github.com/aleka07/openegiz). If the platform was useful to you, support the project with a star on GitHub.
+Если команда завершилась ошибкой или данные не поступают:
+
+```bash
+make logs S=kentash-sim
+```
+
+Команда показывает непрерывный журнал; выход — `Ctrl+C`. Статус тома сохранений, нехватка памяти, несовместимость контрольной точки и ошибки платформы требуют устранения причины. Не удаляйте состояние как обычный способ исправления связи.
+
+## Короткая демонстрация
+
+1. Откройте стенд. «Генплан рудника» показывает участки и их расположение. Перейдите в «Карьер»: самосвалы, забои, дороги и уровень воды отражают состояние модели. Клик по самосвалу открывает водительскую панель.
+2. «Производственный план» показывает план/факт, целевое Cu и наблюдаемые ограничения. «Модули» открывает диспетчеризацию, качество руды, энергетику и другие функциональные экраны.
+3. «Сценарии» → «Обесточивание ГПП-110 кВ» → «Включить». Наблюдайте электропитание, питание фабрики и выпуск. Буферы и время нахождения материала в переделах могут задерживать последствия. При необходимости используйте `×10` или `×20` в шапке.
+4. Отмените сценарий в списке активных. Следите за готовностью и пуском в «Модули» → «Переработка». Если цепочка остановлена оператором, используйте «Последовательный пуск». Не обходите активные причины блокировки.
+5. Откройте «ТОиР»: «Наряды», «Запчасти и поставки», «График ППР» и карточки активов. «Качество концентрата» показывает партии, условия погрузки и паспорта уже состоявшихся отправлений. На свежем запуске история отправлений может быть пустой.
+
+Таблица всех сценариев и восстановления приведена в [SUBMISSION.md](SUBMISSION.md#сценарии-что-если). Сценарии меняют состояние модели и сохраняются. Отмена инициирующего условия не ремонтирует повреждённый актив и не удаляет последствия.
+
+Внутри объектов доступны ракурсы, разрезы и переключатель «все подписи». Объяснения назначения, последовательности и показателей открывает «Как работает» или экран «Технологический процесс». Набор ракурсов зависит от объекта. Для слабого графического устройства в карьере отключите тени. Программный WebGL поддерживается, но производительность всех сцен без GPU отдельно не подтверждена.
+
+## Целевые тесты
+
+Следующая команда использует уже собранный образ симулятора, монтирует только тесты и запускает отдельные экземпляры модели без сети и производственного тома. Выполняйте из корня репозитория после `make mine`:
+
+```bash
+docker run --rm --network none \
+  --mount type=bind,src="$(pwd)/mine/tests",dst=/app/tests,readonly \
+  --workdir /app/tests kentash/sim:local \
+  python -m unittest \
+  test_repair_quality_fuel \
+  test_checkpoint.Checkpoint.test_exact_continuation_including_random_and_cyclic_references \
+  test_reliability.Reliability.test_resources_consumed_once_and_only_work_counts -v
+```
+
+Последняя проверка этого набора: **26 тестов прошли**. Она охватывает ремонты, материалы, сценарии, качество продукта, заправку и сохранение. Это не полный прогон проекта и не подтверждение точности реального предприятия. Другие тематические проверки находятся в `mine/tests/`.
+
+`make smoke` выполняет отдельную сквозную проверку платформы и публикует тестовую телеметрию. Для просмотра презентации и обычной работы стенда запускать его не требуется.
+
+## Остановка и сохранение
+
+```bash
+make down
+make mine
+```
+
+Первая команда останавливает стек, вторая запускает его снова. Именованные тома сохраняются. Симулятор хранит контрольные точки и резервную базу в томе `kentash-sim-state`, каталог `/app/state` контейнера. Интервал по умолчанию — 15 секунд реального времени, при штатной остановке выполняется финальное сохранение. После рестарта продолжаются модельное время, незавершённые операции и состояние случайных процессов. Время отсутствия сервера не проигрывается как работа рудника.
+
+Контрольная точка содержит проверку целостности и совместимости геометрии/оборудования. Если новая версия несовместима с сохранением, нужен перенос состояния. Автоматического сброса при ошибке нет. Встроенная резервная база не заменяет внешнюю копию тома.
+
+**`make clean` удаляет данные и локальные пароли. Это не команда обычной остановки и не часть запуска.**
+
+## Структура и настройки
+
+| Путь | Назначение |
+|---|---|
+| `mine/sim/` | Модель процессов, транспорт, активы, ТОиР, персонал, сценарии, телеметрия и сохранение |
+| `mine/web/` | Генплан, Three.js, мнемосхемы, карточки и функциональные экраны |
+| `mine/data/` | Локальные открытые наборы данных и производные файлы |
+| `mine/grafana/kentash.json` | История показателей в Grafana |
+| `mine/compose.yml` | Симулятор, стенд, том состояния и подключение дашборда |
+| `mine/tests/` | Тематические проверки |
+
+Настройки в `mine/compose.yml`: `SIM_SPEED` — начальное ускорение (по умолчанию 5), `CHECKPOINT_SECONDS` — интервал сохранения (15), `TELEMETRY_MAX_HZ` — общий предел сообщений телеметрии (20). `MINE_PORT` меняет порт стенда (8200). Управление скоростью из интерфейса и сохранённое состояние могут отличаться от первоначального значения переменной окружения.
+
+Код решения распространяется по [MIT](LICENSE). Сторонние компоненты и данные сохраняют собственные лицензии: [NOTICE](NOTICE), [Three.js](mine/web/vendor/LICENSE), [DATA_LICENSES.md](DATA_LICENSES.md).

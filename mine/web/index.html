@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Цифровой рудник «Кенташ»</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.min.js", "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js"}}</script>
+<link rel="stylesheet" href="./truck-ui.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand">
+      <div class="brand-title" id="obj-title">Генплан рудника</div>
+      <div class="brand-sub">Цифровой рудник «Кенташ» · платформа OpenEgiz</div>
+    </div>
+    <nav class="tabs" id="top-sub"></nav>
+    <nav class="tabs hidden-nav" id="view-tabs">
+      <button data-view="plan" class="active" title="Клавиша 1">Генплан</button>
+      <button data-view="pit" title="Клавиша 2">Карьер</button>
+      <button data-view="dw" title="Клавиша 3">Водоотлив</button>
+      <button data-view="crush" title="Дробление ККД и подъезд самосвалов">Дробление ККД</button>
+      <button data-view="stock" title="Склад КДР и подача на МПСИ">Склад КДР</button>
+      <button data-view="grind" title="Измельчение и классификация: МПСИ, МШЦ, гидроциклоны">Измельчение</button>
+      <button data-view="ws" title="Ремонтная мастерская">Мастерская</button>
+      <button data-view="fs" title="АЗС и склад ГСМ">АЗС</button>
+      <button data-view="dump">Отвал вскрышных пород</button><button data-view="rom">Перегрузочный склад</button>
+      <button data-view="gpp" title="ГПП-110/6 кВ">ГПП</button>
+      <button data-view="flot" title="Флотация: основная, контрольная, перечистки">Флотация</button>
+      <button data-view="thk" title="Концентрат">Концентрат</button><button data-view="tls" title="Хвосты">Хвосты</button><button data-view="tsf" title="Хвостохранилище">Хвостохранилище</button>
+      <span class="ddwrap">
+        <button data-view="mods" id="mods-btn" title="Модули рудника — отдельные окна">Модули ▾</button>
+        <div id="mods-menu" class="dd" hidden></div>
+      </span>
+      <button data-view="maint" title="Клавиша 6">ТОиР</button>
+      <button data-view="scen" title="Клавиша 7">Сценарии</button>
+      <button data-view="log" title="Клавиша 8">Журнал <span class="count" id="log-count">0</span></button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="clock" id="clock">—</div>
+    <div class="speed" id="speed" title="Скорость модельного времени (команда через двойник control в Ditto)">
+      <button data-speed="0">❚❚</button><button data-speed="1">×1</button><button data-speed="5">×5</button><button data-speed="10">×10</button><button data-speed="20">×20</button>
+    </div>
+    <button id="theme-btn" title="Светлая / тёмная тема">☀</button>
+    <div id="conn" title="Связь с платформой (поток событий Ditto)"><i></i><span>нет связи</span></div>
+  </header>
+  <div id="kpibar"><div class="kpis" id="kpis"></div></div>
+
+  <aside id="left">
+    <nav id="obj-switch" class="objswitch"></nav>
+    <nav class="tabs small" id="left-tabs">
+      <button data-left="objects" class="active">Объекты</button>
+      <button data-left="staff" hidden aria-hidden="true" style="display:none">Персонал <span class="count" id="staff-count">0</span></button>
+      <button data-left="alarms">Тревоги <span class="count" id="alarm-count">0</span></button>
+    </nav>
+    <section class="left-pane active" id="left-objects">
+      <input id="tree-search" type="search" placeholder="Поиск: тег, название, тип…">
+      <div id="tree" class="scroll"></div>
+    </section>
+    <section class="left-pane" id="left-staff"><div id="staff-list" class="scroll"></div></section>
+    <section class="left-pane" id="left-alarms"><div id="alarms" class="scroll"></div></section>
+  </aside>
+
+  <main id="main">
+    <div id="alarm-banner" hidden></div>
+    <div class="splitter" id="split-left" title="Потяните, чтобы изменить ширину. Двойной щелчок — по умолчанию"></div>
+    <div class="splitter" id="split-right" title="Потяните, чтобы изменить ширину. Двойной щелчок — по умолчанию"></div>
+
+    <div id="view-plan" class="view active"><div id="plan-host" class="fullhost"></div></div>
+
+    <div id="view-pit" class="view">
+      <div class="scenehost" id="scene-pit"></div>
+      <div class="labelhost" id="labels-pit"></div>
+      <div class="toolbar" id="tb-pit">
+        <span class="tb-label">Вид:</span>
+        <button data-pcam="pit">Карьер</button><button data-pcam="top">Сверху</button><button data-pcam="ramp">Съезд</button>
+        <button data-pcam="F1">Забой F1</button><button data-pcam="F2">Забой F2</button><button data-pcam="F3">Забой F3</button>
+        <select id="follow"><option value="">Следить за самосвалом…</option></select>
+        <span class="tb-sep"></span>
+        <button data-pcolor="bench" class="on">Породы</button><button data-pcolor="grade">Cu (блочная модель)</button>
+        <label>Геология <select id="pit-geo"><option value="3d">3D-карьер</option><option value="plan">Горизонт Cu</option><option value="slice-x">Разрез X</option><option value="slice-y">Разрез Y</option></select></label>
+        <span id="pit-geo-extra" hidden><select id="pit-level"><option value="0">0…−15 м</option><option value="1">−15…−30 м</option><option value="2">−30…−45 м</option><option value="3">−45…−60 м</option><option value="4">−60…−75 м</option><option value="5">−75…−90 м</option></select><label>Сечение <input id="pit-slice" type="range" min="-380" max="380" step="20" value="0" style="width:100px"></label><span id="pit-geo-value"></span></span>
+        <label><input type="checkbox" id="pit-markers"> метки скважин</label><label><input type="checkbox" id="pit-rings"> метки техники</label>
+        <label><input type="checkbox" id="opt-all"> все подписи</label>
+        <label><input type="checkbox" id="opt-staff" checked> персонал</label>
+        <select id="quality" title="Качество: тени и детализация"><option value="high">тени: вкл</option><option value="low">тени: выкл</option></select>
+      </div>
+      <div class="legend" id="legend-pit"></div>
+      <div class="hint-bar">ЛКМ: выбрать объект · перетаскивание — вращение · правая кнопка — сдвиг · колесо — приближение · двойной щелчок по насосной — открыть её экран «Водоотлив»</div>
+    </div>
+
+    <div id="view-dw" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="dw" class="active">3D-модель</button><button data-sub="dwhmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-dw"></div>
+      <div class="labelhost" id="labels-dw"></div>
+      <div class="toolbar" id="tb-dw"><label title="В обычном режиме видны важные объекты; включите для подробного просмотра"><input type="checkbox" id="dw-lbl"> все подписи</label>
+        <span class="tb-label">Вид:</span>
+        <button data-dcam="all">Общий вид</button><button data-dcam="room">Машинный зал</button><button data-dcam="sump">Зумпф и колодец</button>
+        <button data-dcam="plc">Шкафы и ПЛК</button><button data-dcam="outlet">Выход трубы</button>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — каждый насос, двигатель, задвижка, клапан, труба, датчик, шкаф подсвечивается отдельно · правая кнопка — вращение · колесо — приближение</div>
+    </div>
+
+    <div id="view-dwhmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="dw">3D-модель</button><button data-sub="dwhmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="dwhmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-crush" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="crush" class="active">3D-модель</button><button data-sub="crushhmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-crush"></div>
+      <div class="labelhost" id="labels-crush"></div>
+      <div class="toolbar" id="tb-crush">
+        <span class="tb-label">Вид:</span>
+        <button data-ccam="all">Общий вид</button><button data-ccam="road">Подъезд</button><button data-ccam="bays">Места разгрузки</button>
+        <button data-ccam="bunker">Бункер</button><button data-ccam="crusher">Дробилка</button><button data-ccam="breaker">Гидромолот</button><button data-ccam="conv">Конвейер К-1</button>
+        <span class="tb-sep"></span><button id="crush-bld" class="on">Корпус: показан</button>
+        <label title="Ближние стены и крыша становятся прозрачными при вращении камеры"><input type="checkbox" id="crush-auto" checked> стены по камере</label>
+        <label><input type="checkbox" id="crush-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — бункер, питатель, дробилка, привод, маслостанция, гидромолот, форсунки, светофоры, места разгрузки, подъезд и каждый самосвал подсвечиваются отдельно</div>
+    </div>
+    <div id="view-crushhmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="crush">3D-модель</button><button data-sub="crushhmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="crushhmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-dump" class="view">
+      <div class="scenehost" id="scene-dump"></div><div class="labelhost" id="labels-dump"></div>
+      <div class="toolbar" id="tb-dump"><span>Вид:</span><button data-dumpcam="all">Общий вид</button><button data-dumpcam="unload">Разгрузка</button><button data-dumpcam="terraces">Ярусы отвала</button><button data-dumpcam="dozer">Бульдозер</button><button data-dumpcam="water">Водоотвод</button><button data-dumpcam="top">Сверху</button><button data-dumpcam="back">Обратная сторона</button><label><input id="dump-dozer" type="checkbox"> просмотр работы бульдозера</label><label><input id="dump-lbl" type="checkbox"> все подписи</label><button id="dump-card">Показатели отвала</button></div>
+      <div class="hint-bar">Самосвалы и принятая вскрыша — данные симуляции. Разгрузка на площадке, разравнивание — бульдозером. Ярусы и водоотвод показаны схематично; просмотр бульдозера не изменяет тоннаж.</div>
+    </div>
+    <div id="view-rom" class="view">
+      <div class="scenehost" id="scene-rom"></div><div class="labelhost" id="labels-rom"></div>
+      <div class="toolbar" id="tb-rom"><span>Вид:</span><button data-romcam="all">Общий вид</button><button data-romcam="pile">Штабель руды</button><button data-romcam="unload">Разгрузочная площадка</button><button data-romcam="loader">Погрузчик</button><button data-romcam="delivery">Погрузка самосвала</button><button id="rom-loader-pose" title="Показать положение ковша над кузовом и приостановить только визуальный цикл">Положение выгрузки</button><label title="Просмотр цикла; запас и подача в Ditto не меняются"><input id="rom-loader-demo" type="checkbox"> показать рабочий цикл</label><label title="Остановить только визуальный просмотр, без остановки симуляции"><input id="rom-loader-pause" type="checkbox" disabled> пауза просмотра</label><span id="rom-loader-status"></span><button data-romcam="top">Сверху</button><button data-romcam="back">Обратная сторона</button><label><input id="rom-lbl" type="checkbox"> все подписи</label><button id="rom-card">Показатели склада</button></div>
+      <div class="hint-bar">Нажмите на штабель — запас, Cu и подача из Ditto. Геометрия по запасу при принятой плотности 2,1 т/м³; цикл погрузчика показывает работу со штабелем. Погрузчик загружает самосвал на складе: 7 подходов, до 130 т. Рабочий цикл связан с назначенным самосвалом. «Показать рабочий цикл» включает отдельный просмотр без изменения запасов.</div>
+    </div>
+    <div id="view-stock" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="stock" class="active">3D-модель</button><button data-sub="stockhmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-stock"></div>
+      <div class="labelhost" id="labels-stock"></div>
+      <div class="toolbar" id="tb-stock">
+        <span class="tb-label">Вид:</span>
+        <button data-scam="all">Общий вид</button><button data-scam="cut">Разрез конуса</button><button data-scam="tunnel">Тоннель питателей</button>
+        <button data-scam="k1">Конвейер К-1</button><button data-scam="k2">Конвейер К-2</button><button data-scam="dozer">Бульдозер</button>
+        <span class="tb-sep"></span><button id="stock-cut">Разрез: выкл.</button>
+        <label title="Прозрачность ближних стен приёмного узла МПСИ"><input type="checkbox" id="stock-auto" checked> стены по камере</label>
+        <label><input type="checkbox" id="stock-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — конус склада, питатели, конвейеры К-1 и К-2, металлодетектор, бульдозер, форсунки подсвечиваются отдельно · «Разрез» показывает тоннель и питатели под конусом</div>
+    </div>
+    <div id="view-stockhmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="stock">3D-модель</button><button data-sub="stockhmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="stockhmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-grind" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="grind" class="active">3D-модель</button><button data-sub="grindhmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-grind"></div>
+      <div class="labelhost" id="labels-grind"></div>
+      <div class="toolbar" id="tb-grind">
+        <span class="tb-label">Вид:</span>
+        <button data-gcam="all">Общий вид</button><button data-gcam="sag">МПСИ</button><button data-gcam="ball">МШЦ</button><button data-gcam="cyc">Гидроциклоны</button>
+        <button data-gcam="pumps">Насосы</button><button data-gcam="sump">Зумпф</button>
+        <span class="tb-sep"></span><button id="grind-cut">Разрез: выкл.</button><button id="grind-hall" class="on">Корпус: показан</button>
+        <label title="Прозрачность стен со стороны камеры"><input type="checkbox" id="grind-auto" checked> стены по камере</label>
+        <label><input type="checkbox" id="grind-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — МПСИ и его кольцевой двигатель, МШЦ и привод, зумпф, каждый насос, кластер гидроциклонов, дозатор шаров подсвечиваются отдельно · «Разрез» показывает загрузку и шары</div>
+    </div>
+    <div id="view-grindhmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="grind">3D-модель</button><button data-sub="grindhmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="grindhmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-thk" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="thk" class="active">3D-модель</button><button data-sub="thkhmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-thk"></div>
+      <div class="labelhost" id="labels-thk"></div>
+      <div class="toolbar" id="tb-thk">
+        <span class="tb-label">Вид:</span>
+        <button data-tcam="all">Общий вид</button><button data-tcam="conc">Сгуститель конц.</button><button data-tcam="press">Фильтр-прессы</button><button data-tcam="store">Склад и отгрузка</button><button data-tcam="train">Состав</button><button data-tcam="loading">Погрузка крупно</button><button data-tcam="water">Насосы и питание</button><button data-tcam="floc">Флокулянт</button><button data-tcam="top">Сверху</button><button data-tcam="opposite">Обратная сторона</button><label><input type="checkbox" id="thk-cut"> разрез оборудования</label><label title="Ускоренный показ приезда, погрузки и отъезда; данные процесса не меняются"><input type="checkbox" id="thk-train-demo"> показать цикл состава</label>
+        <span class="tb-sep"></span><label><input type="checkbox" id="thk-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — сгуститель, каждый фильтр-пресс, склад, насосы выгрузки и флокулянт подсвечиваются отдельно · ЛКМ — вращение, ПКМ — перемещение</div>
+    </div>
+    <div id="view-thkhmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="thk">3D-модель</button><button data-sub="thkhmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="thkhmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-tls" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="tls" class="active">3D-модель</button><button data-sub="tlshmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-tls"></div>
+      <div class="labelhost" id="labels-tls"></div>
+      <div class="toolbar" id="tb-tls">
+        <span class="tb-label">Вид:</span>
+        <button data-tcam="tails">Сгуститель хвостов</button><button data-tcam="pumps">Насосная станция</button><button data-tcam="pipe">Пульпопровод</button><button data-tcam="all">Общий вид</button>
+        <span class="tb-sep"></span><label><input type="checkbox" id="tls-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — сгуститель, бак станции, каждый насос, пульпопровод · правая кнопка — вращение</div>
+    </div>
+    <div id="view-tlshmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="tls">3D-модель</button><button data-sub="tlshmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="tlshmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-tsf" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="tsf" class="active">3D-модель</button><button data-sub="tsfhmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-tsf"></div>
+      <div class="labelhost" id="labels-tsf"></div>
+      <div class="toolbar" id="tb-tsf">
+        <span class="tb-label">Вид:</span>
+        <button data-tcam="tsf">Хвостохранилище</button><button data-tcam="water">Оборотная вода</button><button data-tcam="all">Общий вид</button><button data-tcam="barge">Плавучие насосные</button><button data-tcam="deposition">Намыв</button><button data-tcam="dam">Дамба и дренаж</button><button data-tcam="top">Сверху</button><button data-tcam="opposite">Обратная сторона</button><label><input type="checkbox" id="tsf-cut"> разрез дамбы</label><label><input type="checkbox" id="tsf-water-cut"> разрез бака воды</label>
+        <span class="tb-sep"></span><label><input type="checkbox" id="tsf-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — хвостохранилище, барж-насосы, бак воды, геомониторинг · ЛКМ — вращение, ПКМ — перемещение</div>
+    </div>
+    <div id="view-tsfhmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="tsf">3D-модель</button><button data-sub="tsfhmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="tsfhmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-ws" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="ws" class="active">3D-модель</button><button data-sub="wshmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-ws"></div>
+      <div class="labelhost" id="labels-ws"></div>
+      <div class="toolbar" id="tb-ws">
+        <span class="tb-label">Вид:</span>
+        <button data-wscam="all">Общий вид</button><button data-wscam="bays">Посты</button><button data-wscam="store">Склад запчастей</button><button data-wscam="gate">Подъезд</button><button data-wscam="tyres">Шинный участок</button><button data-wscam="pit">Смотровые ямы</button>
+        <span class="tb-sep"></span><button id="ws-hall" class="on">Здание: показано</button><label><input type="checkbox" id="ws-auto" checked> стены по камере</label><label><input type="checkbox" id="ws-pits"> открыть ямы</label><label><input type="checkbox" id="ws-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — каждый пост, кран, склад запчастей, самосвал на посту подсвечиваются отдельно</div>
+    </div>
+    <div id="view-wshmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="ws">3D-модель</button><button data-sub="wshmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="wshmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-fs" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="fs" class="active">3D-модель</button><button data-sub="fshmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-fs"></div>
+      <div class="labelhost" id="labels-fs"></div>
+      <div class="toolbar" id="tb-fs">
+        <span class="tb-label">Вид:</span>
+        <button data-fscam="all">Общий вид</button><button data-fscam="tanks">Резервуары</button><button data-fscam="island">Колонки</button><button data-fscam="tanker">Бензовоз</button><button data-fscam="pump">Насосная</button><button data-fscam="store">Склад ГСМ</button><button data-fscam="top">Сверху</button><button data-fscam="opposite">Обратная сторона</button>
+        <span class="tb-sep"></span><button id="fs-hall" class="on">Здания: показаны</button><label><input type="checkbox" id="fs-auto" checked> стены по камере</label><label><input type="checkbox" id="fs-cut"> разрез резервуаров</label><label title="Полупрозрачные макеты показывают размер техники на свободных постах"><input type="checkbox" id="fs-envelope"> габариты техники</label><label><input type="checkbox" id="fs-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — резервуары, колонки, фильтры, бензовоз и пожарный пост подсвечиваются отдельно</div>
+    </div>
+    <div id="view-fshmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="fs">3D-модель</button><button data-sub="fshmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="fshmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-gpp" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="gpp" class="active">3D-модель</button><button data-sub="gpphmi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-gpp"></div>
+      <div class="labelhost" id="labels-gpp"></div>
+      <div class="toolbar" id="tb-gpp">
+        <span class="tb-label">Вид:</span>
+        <button data-gppcam="all">Общий вид</button><button data-gppcam="hv">ОРУ 110 кВ</button><button data-gppcam="tr">Трансформаторы</button><button data-gppcam="kru">КРУ 6 кВ</button>
+        <span class="tb-sep"></span><button id="gpp-hall" class="on">Здание: показано</button><label><input type="checkbox" id="gpp-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — линии, выключатели, трансформаторы, секции и конденсаторные установки подсвечиваются отдельно</div>
+    </div>
+    <div id="view-gpphmi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="gpp">3D-модель</button><button data-sub="gpphmi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="gpphmi-host" class="fullhost"></div>
+    </div>
+    <div id="view-flot" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="flot" class="active">3D-модель</button><button data-sub="flothi">Мнемосхема АСУ ТП</button></nav>
+      <div class="scenehost" id="scene-flot"></div>
+      <div class="labelhost" id="labels-flot"></div>
+      <div class="toolbar" id="tb-flot">
+        <span class="tb-label">Вид:</span>
+        <button data-fcam="all">Общий вид</button><button data-fcam="rougher">Основная</button><button data-fcam="scav">Контрольная</button><button data-fcam="clean">Перечистные</button>
+        <button data-fcam="reag">Реагенты</button><button data-fcam="cond">Кондиционирование</button><button data-fcam="regrind">Доизмельчение</button><button data-fcam="air">Воздуходувки</button>
+        <span class="tb-sep"></span><button id="flot-cut">Разрез: выкл.</button><button id="flot-hall" class="on">Цех: показан</button>
+        <label title="Прозрачность стен со стороны камеры"><input type="checkbox" id="flot-auto" checked> стены по камере</label><label><input type="checkbox" id="flot-lbl"> все подписи</label>
+      </div>
+      <div class="hint-bar">ЛКМ: выбрать — кондиционный чан, каждая банка камер, доизмельчение, воздуходувки, ёмкости реагентов, анализатор подсвечиваются отдельно · «Разрез» показывает пульпу и роторы</div>
+    </div>
+    <div id="view-flothi" class="view">
+      <nav class="tabs objbar" data-objbar><button data-sub="flot">3D-модель</button><button data-sub="flothi" class="active">Мнемосхема АСУ ТП</button></nav>
+      <div id="flothi-host" class="fullhost"></div>
+    </div>
+
+    <div id="view-mods" class="view"><div id="mods-host" class="fullhost hubhost"></div></div>
+    <div id="view-win" class="view"><div id="win-host" class="fullhost hubhost"></div></div>
+    <div id="view-maint" class="view"><div id="maint-host" class="fullhost"></div></div>
+    <div id="view-scen" class="view"><div id="scen-host" class="fullhost hubhost"></div></div>
+    <div id="view-log" class="view"><div id="log-host" class="fullhost hubhost"></div></div>
+    <div id="toasts"></div>
+  </main>
+
+  <aside id="right">
+    <nav class="tabs small" id="side-tabs">
+      <button data-side="obj" class="active">Объект</button>
+      <button data-side="ctl">Управление</button>
+      <button data-side="maint">ТОиР</button>
+    </nav>
+    <section class="side-pane active" id="side-obj"><div id="faceplate" class="scroll"><div class="empty">Выберите объект на плане, в 3D-модели или в дереве слева.</div></div></section>
+    <section class="side-pane" id="side-ctl"><div id="ctl" class="scroll"></div></section>
+    <section class="side-pane" id="side-maint"><div id="asset-card" class="scroll"></div></section>
+  </aside>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

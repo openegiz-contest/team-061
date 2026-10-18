@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Цифровой рудник «Кенташ» — презентация</title>
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+  :root { --bg: #0f1419; --panel: #161c23; --line: #2a333d; --text: #e3e8ee; --muted: #8b97a3; --accent: #f0a33a; --blue: #4aa3ff; --ok: #3fb950; --alarm: #f85149; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 22px/1.4 "Segoe UI", Inter, system-ui, sans-serif; }
+  .s { width: 1600px; height: 900px; padding: 56px 70px; position: relative; page-break-after: always; overflow: hidden; background: var(--bg); }
+  .s::after { content: attr(data-n); position: absolute; right: 40px; bottom: 26px; color: var(--muted); font-size: 16px; }
+  h1 { font-size: 64px; margin: 0 0 18px; line-height: 1.1; }
+  h2 { font-size: 40px; margin: 0 0 26px; }
+  h2 small { display: block; font-size: 20px; color: var(--accent); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .muted { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+  .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  .card h3 { margin: 0 0 8px; font-size: 24px; color: var(--accent); }
+  .card p { margin: 0; color: #c9d2db; font-size: 19px; }
+  ul { margin: 0; padding-left: 26px; } li { margin: 6px 0; }
+  .shot { width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+  .big { font-size: 54px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .stat { text-align: left; } .stat span { color: var(--muted); font-size: 18px; display: block; margin-top: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 18px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  code { font-family: Consolas, monospace; background: #1c242d; padding: 1px 6px; border-radius: 5px; font-size: .9em; }
+  .flow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 21px; }
+  .flow b { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; font-weight: 600; }
+  .flow i { color: var(--accent); font-style: normal; font-size: 28px; }
+  .tag { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 20px; padding: 3px 12px; font-size: 17px; margin: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+
+<section class="s" data-n="1">
+  <div style="display:grid;grid-template-columns:600px 1fr;gap:40px;height:100%">
+    <div style="display:flex;flex-direction:column;justify-content:center">
+      <div class="tag">Цифровой рудник на OpenEgiz</div>
+      <h1>Рудник «Кенташ»</h1>
+      <p style="font-size:27px">Цифровой двойник открытого медного карьера и обогатительной фабрики: от забоя до меди в концентрате и прибыли.</p>
+      <ul class="muted" style="font-size:21px">
+        <li>62 двойника в Eclipse Ditto, данные — через MQTT → Ditto</li>
+        <li>Физика процессов, калибровка по 5 открытым наборам данных</li>
+        <li>3D-Стенд, 14 сценариев «что если», 7 модулей карты + 3 своих</li>
+      </ul>
+      <p style="margin-top:26px">Запуск: <code>sudo apt-get install -y make</code>, затем <code>make mine</code><br>Стенд: <b>http://localhost:8200</b></p>
+    </div>
+    <img class="shot" src="img/main.png" style="align-self:center">
+  </div>
+</section>
+
+<section class="s" data-n="2">
+  <h2><small>Что сделано</small>Рудник, в котором всё связано</h2>
+  <div class="cols3" style="margin-bottom:28px">
+    <div class="card stat"><div class="big">62</div><span>двойника 28 типов: техника, забои, дороги, ККД, мельницы, флотация, ГПП, водоотлив, борт, воздух, люди</span></div>
+    <div class="card stat"><div class="big">14</div><span>сценариев «что если» со Стенда без изменения кода — последствия идут по цепочке двойников</span></div>
+    <div class="card stat"><div class="big">10</div><span>модулей: 7 из карты рудника + водоотлив, склад ГСМ, экономика смены</span></div>
+  </div>
+  <div class="flow"><b>Буровой станок</b><i>→</i><b>Взрыв (P80)</b><i>→</i><b>Экскаватор</b><i>→</i><b>Самосвал по дорогам</b><i>→</i><b>ККД / склады / отвал</b><i>→</i><b>МПСИ → МШЦ</b><i>→</i><b>Флотация</b><i>→</i><b>Медь, ₸</b></div>
+  <p class="muted" style="margin-top:26px">Каждая тонна, вынутая экскаватором, едет в кузове с её содержанием меди, крепостью и кусковатостью; мощность и топливо считаются из работы машин; вода, погода, взрывы и борт меняют условия. Модель считается с шагом 1 модельная секунда и проверена 14 тестами (балансы, правдоподобие, сценарии).</p>
+</section>
+
+<section class="s" data-n="3">
+  <h2><small>Построено на OpenEgiz</small>Данные — только через платформу</h2>
+  <div class="flow" style="margin-bottom:30px"><b>kentash-sim<br><span class="muted" style="font-size:16px">модель рудника</span></b><i>— MQTT telemetry/… →</i><b>Eclipse Ditto<br><span class="muted" style="font-size:16px">62 двойника kz.kentash:*</span></b><i>→</i><b>Telegraf → InfluxDB</b><i>→</i><b>Grafana</b></div>
+  <div class="flow" style="margin-bottom:34px"><b>Стенд kentash-web</b><i>← поиск + поток событий SSE ←</i><b>Ditto</b><i>← PUT control ←</i><b>кнопки сценариев</b><i>→ событие MQTT →</i><b>kentash-sim</b></div>
+  <div class="cols">
+    <div class="card"><h3>Двойники</h3><p>Паспорт в <code>attributes</code> (тип, параметры техники, иерархия <code>_parents</code>, связи <code>relations</code>: питание, поток материала, обслуживание), состояние в <code>features</code>. Симулятор пишет только командами Ditto protocol <code>modify /features</code> через MQTT.</p></div>
+    <div class="card"><h3>Стенд и команды</h3><p>Стенд берёт начальное состояние поиском Ditto и дальше живёт на потоке изменений двойников. Сценарии и режимы — запись в двойник <code>control</code>; симулятор получает событие из Ditto. Пароль платформы подставляет прокси на сервере.</p></div>
+  </div>
+</section>
+
+<section class="s" data-n="4">
+  <h2><small>Модель рудника · 25 баллов</small>62 двойника, состояния и связи</h2>
+  <table>
+    <tr><th>Группа</th><th>Двойники</th><th>Состояние</th></tr>
+    <tr><td>Горные работы</td><td>3 забоя, 3 экскаватора (2 электрических, 1 дизельный), 2 буровых станка, 8 самосвалов 130 т</td><td>Cu/S/Au, крепость, взорванный запас, P80; цикл, ковш, очередь; координаты, груз и его Cu, топливо, износ</td></tr>
+    <tr><td>Дороги</td><td>12 участков: спиральный съезд 8 %, западный серпантин, объездная, плечи к ККД и отвалу</td><td>открыт/закрыт, мокрый, ограничение скорости, самосвалов на участке; геометрия — в паспорте</td></tr>
+    <tr><td>Переработка</td><td>ККД, склад КДР, перегрузочный склад, отвал, МПСИ, МШЦ, флотация, хвостохранилище</td><td>производительность, бункер, крупность, запасы, удельная энергия, помол P80, извлечение, концентрат</td></tr>
+    <tr><td>Инфраструктура</td><td>ГПП и 4 фидера, водоотлив и 3 насоса, АЗС, ремонтный бокс, метеостанция</td><td>нагрузка и лимит, зумпф/приток/откачка, запас дизеля, техника в ремонте, дождь/ветер</td></tr>
+    <tr><td>Безопасность</td><td>радар борта, 3 поста пыли и газов, 2 бригады и горный мастер (GNSS)</td><td>TARP, PM10, NO₂, запрет входа после взрыва; позиции людей, сближения с техникой</td></tr>
+    <tr><td>Модули</td><td>dispatch, economics, scenario-engine, control, mine/pit/plant</td><td>решения модулей, журнал взрывов, выручка/затраты, активные сценарии, сводные KPI</td></tr>
+  </table>
+</section>
+
+<section class="s" data-n="5">
+  <h2><small>Достоверность поведения · 20 баллов</small>Физика и реальные данные</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li><b>Самосвал</b>: скорость из тяговой мощности 1194 кВт, сопротивления качению (2,5 %, мокро 4 %), уклона; гружёный на подъёме 8 % — 10–15 км/ч; топливо 0,256 л/кВт·ч</li>
+        <li><b>Экскаватор</b>: наполнение ковша и цикл зависят от кусковатости P80 и крепости</li>
+        <li><b>ККД</b>: 3000 т/ч при нормальном питании, меньше при крупном и крепком</li>
+        <li><b>Мельницы</b>: МПСИ 7,2 кВт·ч/т × крепость, помол МШЦ по закону Бонда</li>
+        <li><b>Водоотлив</b>: приток + сток с 1,06 км², мощность насосов ρgQH/η</li>
+        <li><b>Энергия, CO₂, экономика</b> — из работы машин и тарифов</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Открытые данные (лицензии проверены)</h3>
+      <table style="font-size:17px">
+        <tr><td><b>GeoMet</b> (CC BY)</td><td>блочная модель: Cu, S, Au, измельчаемость, извлечение по 2000 пробам</td></tr>
+        <tr><td><b>El Aljibe</b> (CC BY)</td><td>P80 нормального взрыва — медиана 12 взрывов, 356 мм</td></tr>
+        <tr><td><b>MWD</b> (CC BY)</td><td>разброс скорости бурения</td></tr>
+        <tr><td><b>Энергия ГОК</b> (CC BY-SA)</td><td>суточная форма нагрузки, зима/лето ×1,28</td></tr>
+        <tr><td><b>OpenMines</b> (MIT)</td><td>проверка средней скорости самосвалов</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="s" data-n="6">
+  <h2><small>Визуализация · 20 баллов</small>Рудник как пространственный объект</h2>
+  <div class="cols" style="grid-template-columns:1.25fr 1fr">
+    <img class="shot" src="img/grade.png">
+    <div>
+      <ul>
+        <li>Карьер — сетка высот: уступы 15 м, откосы 65°, бермы, съезды вырезаны в бортах</li>
+        <li>Самосвалы по координатам двойников, цвет — состояние, кузов — материал</li>
+        <li>Дороги: закрыта — красная, мокрая — синяя</li>
+        <li>Склады растут и убывают, вода в зумпфе поднимается, облако взрыва, радар меняет цвет</li>
+        <li>Раскраска бортов по <b>содержанию Cu</b> из блочной модели (на снимке)</li>
+        <li>Схема фабрики, карточка любого двойника по клику, Grafana — история (18 панелей)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="s" data-n="7">
+  <h2><small>Сценарии «что если» · 15 баллов</small>Кнопка на Стенде → цепочка последствий</h2>
+  <div class="cols" style="grid-template-columns:1.25fr 1fr">
+    <img class="shot" src="img/road.png">
+    <div>
+      <p><b>Закрыть верхний участок съезда:</b> участок красный → самосвалы перестраивают путь через западный съезд и объездную → рейс длиннее → меньше руды → склад КДР тратится → медь и прибыль ниже.</p>
+      <table style="font-size:17px;margin-top:10px">
+        <tr><td>Отказ экскаватора / самосвала</td><td>Обесточивание ГПП / фидера</td></tr>
+        <tr><td>Остановка ККД</td><td>Ливень, отказ насосов → подтопление F1</td></tr>
+        <tr><td>Некачественный взрыв</td><td>Провести взрыв сейчас</td></tr>
+        <tr><td>Штиль и инверсия</td><td>Деформация борта → TARP</td></tr>
+        <tr><td>Окисленная руда</td><td>Срыв поставок топлива</td></tr>
+      </table>
+      <p class="muted" style="margin-top:10px">Отмена — «Отменить» у активного сценария или «Отменить все». Код не меняется: команда идёт через двойник <code>control</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="s" data-n="8">
+  <h2><small>Модули · 10 баллов</small>Модули меняют работу рудника и принимают решения</h2>
+  <div class="cols3">
+    <div class="card"><h3>1. Транспорт и диспетчеризация</h3><p>Выбор экскаватора по времени цикла на ценную тонну с учётом очередей и простоя. При отказе экскаватора вывозит на <b>20–26 %</b> больше горной массы, чем жёсткое закрепление (тест).</p></div>
+    <div class="card"><h3>2. Геология и качество</h3><p>Блочная модель GeoMet, рудоконтроль по кузову (вскрыша / бедная руда / ККД), усреднение к целевому содержанию, подача со склада погрузчиком.</p></div>
+    <div class="card"><h3>3. Буровзрывные работы</h3><p>Бурение по MWD, взрыв по готовности и окнам, кусковатость по Кузнецову–Рамлеру → ковш, цикл, ККД.</p></div>
+    <div class="card"><h3>4. Безопасность</h3><p>Пыль и NO₂ с проветриванием, радар борта и TARP, зарядка блока и вывод людей до взрыва, предупреждения о сближении.</p></div>
+    <div class="card"><h3>5. Энергетика</h3><p>Баланс ГПП по 8 группам, лимит 52 МВт с ограничением питания фабрики, профиль нагрузки реального ГОК.</p></div>
+    <div class="card"><h3>6–7. Переработка, ТО</h3><p>ККД → МПСИ → МШЦ → флотация; износ, отказы, ТО-250, КТГ. Свои: водоотлив, склад ГСМ, экономика смены.</p></div>
+  </div>
+</section>
+
+<section class="s" data-n="9">
+  <h2><small>Безопасность взрыва</small>Допуск к взрыву — по положению людей</h2>
+  <div class="cols" style="grid-template-columns:1.25fr 1fr">
+    <img class="shot" src="img/blast.png">
+    <div>
+      <ol style="padding-left:24px">
+        <li>Блок обурен — взрывная бригада едет к забою и заряжает 20 мин</li>
+        <li>Экскаватор отгоняется, его самосвалы уходят на другие забои</li>
+        <li>Взрыв — только если в радиусе 300 м нет людей и лёгкого транспорта; иначе задержка и решение в журнале</li>
+        <li>После взрыва зона закрыта, пока NO₂ не ниже 1 ppm; при инверсии — дольше</li>
+      </ol>
+      <p class="muted">На снимке — облако взрыва в забое F2, самосвалы в ожидании допуска, журнал событий.</p>
+    </div>
+  </div>
+</section>
+
+<section class="s" data-n="10">
+  <h2><small>Переработка</small>Фабрика в цепочке</h2>
+  <div class="cols" style="grid-template-columns:1.25fr 1fr">
+    <img class="shot" src="img/plant.png">
+    <div>
+      <ul>
+        <li>Крепость и извлечение руды приходят из забоев по тоннам в кузовах</li>
+        <li>Крупный взрыв снижает производительность ККД</li>
+        <li>Склад КДР — буфер: при остановке ККД видно, на сколько часов хватит</li>
+        <li>Обесточивание: мельницы стоят, медь = 0; после подачи напряжения пуск 25 мин и набор загрузки</li>
+        <li>У лимита ГПП модуль энергетики снижает питание фабрики на 15 %</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="s" data-n="11">
+  <h2><small>Как увидеть на Стенде</small>3 минуты после <code>make mine</code></h2>
+  <div class="cols">
+    <ol style="padding-left:26px">
+      <li>Откройте <b>http://localhost:8200</b> — самосвалы ездят, вверху KPI из двойников</li>
+      <li>«Сценарии «что если»» → «Закрыть участок дороги», <code>ramp-upper</code> → Включить</li>
+      <li>Кнопка <b>×20</b> — ускорить время; смотрите объезд и снижение добычи</li>
+      <li>«Модули» — решения диспетчеризации, энергетики, безопасности</li>
+      <li>«Фабрика» — схема с текущими значениями</li>
+      <li>«содержание Cu (блочная модель)» — раскраска бортов</li>
+      <li>Grafana (http://localhost:3000) → «Рудник «Кенташ»» — история</li>
+    </ol>
+    <div class="card"><h3>Проверки</h3>
+      <p><code>make smoke</code> — сквозная проверка платформы</p>
+      <p style="margin-top:10px"><code>python3 -m unittest discover -s mine/tests -v</code> — 14 проверок: баланс масс, скорость на подъёме, сравнение с OpenMines, детерминированность, последствия сценариев, допуск к взрыву, выигрыш диспетчеризации</p>
+      <p style="margin-top:14px" class="muted">Документы: README.md (запуск), SUBMISSION.md (модули, сценарии, данные и допущения), DATA_LICENSES.md (лицензии данных).</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

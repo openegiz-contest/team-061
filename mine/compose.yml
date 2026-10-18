@@ -1,0 +1,52 @@
+# Рудник «Кенташ»: надстройка над deploy/compose/docker-compose.yml (запуск: make mine из корня репозитория).
+services:
+  kentash-sim:
+    build:
+      context: ../../mine
+      dockerfile: sim/Dockerfile
+    image: kentash/sim:local
+    restart: unless-stopped
+    mem_limit: 256m
+    stop_grace_period: 60s
+    volumes:
+      - kentash-sim-state:/app/state
+    environment:
+      DITTO_URL: http://ditto-nginx:80
+      DITTO_PASSWORD: ${DITTO_PASSWORD}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      SIM_SPEED: ${SIM_SPEED:-5}
+      STATE_PATH: /app/state/state.sqlite
+      CHECKPOINT_SECONDS: ${CHECKPOINT_SECONDS:-15}
+      TELEMETRY_MAX_HZ: ${TELEMETRY_MAX_HZ:-20}
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  kentash-web:
+    image: docker.io/library/nginx:1.27-alpine
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      DITTO_BASIC_AUTH: ${DITTO_BASIC_AUTH}
+      NGINX_ENVSUBST_FILTER: DITTO_
+    volumes:
+      - ../../mine/web:/usr/share/nginx/html:ro
+      - ../../mine/web/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    ports:
+      - "${OPENEGIZ_BIND:-127.0.0.1}:${MINE_PORT:-8200}:80"
+    depends_on:
+      ditto-nginx:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  grafana:
+    volumes:
+      - ../../mine/grafana/kentash.json:/var/lib/grafana/example-dashboards/kentash.json:ro
+
+volumes:
+  kentash-sim-state:

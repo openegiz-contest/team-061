@@ -1,4 +1,4 @@
-.PHONY: up down ps logs smoke clean example-mine example-mine-stop install uninstall status endpoints upgrade upload-build generate-data copy-build unity-demo check-secrets check-public-host
+.PHONY: mine up down ps logs smoke clean example-mine example-mine-stop install uninstall status endpoints upgrade upload-build generate-data copy-build unity-demo check-secrets check-public-host
 
 # ---------------------------------------------------------------------------
 # Docker Compose deployment (laptops, CI, contest judges): deploy/compose/
@@ -9,7 +9,10 @@ COMPOSE_BASE := docker compose -f deploy/compose/docker-compose.yml
 # `make clean` forgets it.
 MINE_MARKER  := deploy/compose/.example-mine
 MINE_COMPOSE := examples/mine/compose.yml
-COMPOSE := $(COMPOSE_BASE)$(if $(wildcard $(MINE_MARKER)), -f $(MINE_COMPOSE))
+# Рудник «Кенташ» (решение конкурса): после `make mine` все команды compose подключают его надстройку.
+KENTASH_MARKER  := deploy/compose/.kentash
+KENTASH_COMPOSE := mine/compose.yml
+COMPOSE := $(COMPOSE_BASE)$(if $(wildcard $(MINE_MARKER)), -f $(MINE_COMPOSE))$(if $(wildcard $(KENTASH_MARKER)), -f $(KENTASH_COMPOSE))
 
 ## Start the whole platform with Docker Compose (first run: generates credentials)
 up:
@@ -45,6 +48,12 @@ example-mine: up
 	@touch $(MINE_MARKER)
 	@echo "Example Mine running: Grafana -> Dashboards -> OpenEgiz Examples -> Example Mine"
 
+## Рудник «Кенташ»: платформа + симулятор рудника + Стенд (http://localhost:8200) + дашборд Grafana
+mine: up
+	$(COMPOSE_BASE) -f $(KENTASH_COMPOSE) up -d --build --wait --wait-timeout 600
+	@touch $(KENTASH_MARKER)
+	@bash mine/scripts/wait-ready.sh
+
 ## Stop the Example Mine simulator (twins and data stay)
 example-mine-stop:
 	$(COMPOSE_BASE) -f $(MINE_COMPOSE) stop mine-simulator
@@ -52,7 +61,7 @@ example-mine-stop:
 ## Stop the platform and DELETE all its data and credentials
 clean:
 	$(COMPOSE) down -v --remove-orphans
-	rm -f deploy/compose/.env $(MINE_MARKER)
+	rm -f deploy/compose/.env $(MINE_MARKER) $(KENTASH_MARKER)
 
 # ---------------------------------------------------------------------------
 # Helm deployment (servers): the chart at the repository root
