@@ -1,5 +1,6 @@
 """Model safety permits and acknowledged incidents. Thresholds are scenario settings, not legal limits."""
 import math
+AUTO_ACK_S=1200.                 # если диспетчер не подтвердил снятие опасности, через 20 мин это делает горный мастер
 def ensure(m):
     if not hasattr(m,'safety'):m.safety=dict(events={},history=[],permits={})
     return m.safety
@@ -24,7 +25,13 @@ def tick(m,dt=0.):
             s['history']=(s['history']+[dict(t=m.t,event=title,action='ограничение допуска')])[-40:]
         s['events'][key]['active']=True
     for key,e in list(s['events'].items()):
-        e['active']=key in current
+        was=e['active'];e['active']=key in current
+        if was and not e['active']:e['ended']=m.t
+        if not e['active'] and not e['ack'] and m.t-e.setdefault('ended',m.t)>=AUTO_ACK_S:
+            # Unattended stand: the shift foreman confirms the cleared zone by regulation, so one missed click cannot stop the mine.
+            e['ack']=True
+            s['history']=(s['history']+[dict(t=m.t,event=e['title'],action=f'подтверждено горным мастером по регламенту: диспетчер не ответил {AUTO_ACK_S//60:.0f} мин')])[-40:]
+            if hasattr(m,'log'):m.log('info',f"Безопасность: «{e['title']}» — зона проверена, допуск подтвердил горный мастер")
         if not e['active'] and e['ack']:del s['events'][key]
     return s
 def acknowledge(m):

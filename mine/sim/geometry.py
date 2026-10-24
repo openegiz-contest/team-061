@@ -370,6 +370,11 @@ def build():
     g.node("ROM", at(450, 150))
     g.edge("J1", "CR", "haul-plant", smooth([j1, at(300, -10), at(420, -95), g.nodes["CR"]], 60))
     g.edge("J1", "ROM", "haul-plant", smooth([j1, at(260, 25), at(380, 140), g.nodes["ROM"]], 60))
+    # стоянка техники на время взрывных работ: тупиковая площадка между дорогами J2–J1, J1–склад и J3–АЗС,
+    # ≥ 345 м от всех забоев (зона 300 м), внутри 3D-сцены карьера, подъезд ≈ 90 м от развязки J1; два ряда по три места
+    park = at(122, 71)
+    g.node("PARK", park)
+    g.edge("J1", "PARK", "haul-plant", smooth([j1, at(165, 32), park], 30))
     j3 = at(85, 120)
     g.node("J3", j3)
     g.edge("J2", "J3", "haul-dump", smooth([j2, at(85, 40), j3], 35))
@@ -422,6 +427,18 @@ def _face_dir(fid):
     i = F1_FLOOR_I if fid == "F1" else PADS[fid][1]
     nx, ny = NORM[i]
     return math.degrees(math.atan2(-nx, ny))
+
+
+PARK_PAD = {"w": 40.0, "l": 40.0, "front": 6.0, "rows": 2, "cols": 3}   # площадка стоянки, м: ширина × длина, запас за передним рядом
+
+
+def parking():
+    """Площадка стоянки техники: центр, курс заезда (рад) и размеры — для Стенда и генплана."""
+    e = GRAPH.edges[("J1", "PARK")]
+    end, h = polyline_at(e["pts"], e["len"])
+    c = PARK_PAD["front"] - PARK_PAD["l"] / 2                       # центр сдвинут назад от узла: передний ряд у кромки
+    return {"x": round(end[0] + c * math.cos(h), 1), "y": round(end[1] + c * math.sin(h), 1), "h": round(h, 4),
+            "node": [round(end[0], 1), round(end[1], 1)], **PARK_PAD, "slot_m": 18.0, "lat_m": [0.0, 13.0, -13.0]}
 
 
 FACE_ANGLE = {f: _face_dir(f) - 90 for f in ("F1", "F2", "F3")}    # модель добавляет +90° — вдоль фронта

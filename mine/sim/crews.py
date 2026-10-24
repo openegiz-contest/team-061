@@ -11,12 +11,24 @@ SITE_NAME = {"crush": "ККД и разгрузка", "stock": "Склад КД�
              "ws": "Ремонтная мастерская", "fs": "АЗС и склад ГСМ", "gpp": "ГПП и энергоснабжение"}
 
 
+_CR_HEADING = {}
+
+
+def _crusher_heading():
+    """Направление подъезда к ККД: геометрия дорог неизменна, расчёт по ломаной выполняется один раз."""
+    key = id(G.GRAPH)
+    if key not in _CR_HEADING:
+        _CR_HEADING.clear()
+        _CR_HEADING[key] = G.crusher_site()["h"]
+    return _CR_HEADING[key]
+
+
 def frame(site):
     """(x0, y0, heading) локальной системы объекта в мировых координатах."""
     cr = G.GRAPH.nodes["CR"]
     px, py = cr[0] + 260.0, cr[1] + 40.0
     return {
-        "crush": (cr[0], cr[1], G.crusher_site()["h"]),
+        "crush": (cr[0], cr[1], _crusher_heading()),
         "stock": (cr[0] + 170.0, cr[1] + 40.0, 0.0),
         "grind": (px, py + 10.0, 0.0),
         "flot": (px + 80.0, py - 25.0, 0.0),

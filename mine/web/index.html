@@ -19,7 +19,7 @@
     <nav class="tabs hidden-nav" id="view-tabs">
       <button data-view="plan" class="active" title="Клавиша 1">Генплан</button>
       <button data-view="pit" title="Клавиша 2">Карьер</button>
-      <button data-view="dw" title="Клавиша 3">Водоотлив</button>
+      <button data-view="dw" title="Водоотлив">Водоотлив</button>
       <button data-view="crush" title="Дробление ККД и подъезд самосвалов">Дробление ККД</button>
       <button data-view="stock" title="Склад КДР и подача на МПСИ">Склад КДР</button>
       <button data-view="grind" title="Измельчение и классификация: МПСИ, МШЦ, гидроциклоны">Измельчение</button>
@@ -30,14 +30,19 @@
       <button data-view="flot" title="Флотация: основная, контрольная, перечистки">Флотация</button>
       <button data-view="thk" title="Концентрат">Концентрат</button><button data-view="tls" title="Хвосты">Хвосты</button><button data-view="tsf" title="Хвостохранилище">Хвостохранилище</button>
       <span class="ddwrap">
-        <button data-view="mods" id="mods-btn" title="Модули рудника — отдельные окна">Модули ▾</button>
+        <button data-view="mods" id="mods-btn" title="Клавиша 7: модули рудника — отдельные окна">Модули ▾</button>
         <div id="mods-menu" class="dd" hidden></div>
       </span>
-      <button data-view="maint" title="Клавиша 6">ТОиР</button>
-      <button data-view="scen" title="Клавиша 7">Сценарии</button>
-      <button data-view="log" title="Клавиша 8">Журнал <span class="count" id="log-count">0</span></button>
+      <button data-view="maint" title="Клавиша 5">ТОиР</button>
+      <button data-view="scen" title="Клавиша 4: включить ситуацию в живом руднике">Ситуации</button>
+      <button data-view="fcst" title="Клавиша 3: прогноз «что если» на сутки и рекомендации">Прогноз «что если»</button>
+      <button data-view="log" title="Клавиша 6">Журнал <span class="count" id="log-count">0</span></button>
     </nav>
     <div class="spacer"></div>
+    <button id="steady-btn" class="btn steady" title="Сбросить все ошибки и ситуации, подтвердить допуски, вернуть штатные уставки и запустить цепочку (плановые работы ТОиР сохраняются)">На режим</button>
+    <button id="fc-pill" class="fc-pill" hidden title="Прогноз выполняется — открыть"></button>
+    <div class="bellwrap"><button id="bell" class="bell" title="Тревоги и предупреждения" aria-label="Тревоги"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/></svg><span class="count" id="alarm-count">0</span></button>
+      <div id="bell-panel" class="dd bell-panel" hidden><div id="alarms" class="scroll"></div></div></div>
     <div class="clock" id="clock">—</div>
     <div class="speed" id="speed" title="Скорость модельного времени (команда через двойник control в Ditto)">
       <button data-speed="0">❚❚</button><button data-speed="1">×1</button><button data-speed="5">×5</button><button data-speed="10">×10</button><button data-speed="20">×20</button>
@@ -49,17 +54,6 @@
 
   <aside id="left">
     <nav id="obj-switch" class="objswitch"></nav>
-    <nav class="tabs small" id="left-tabs">
-      <button data-left="objects" class="active">Объекты</button>
-      <button data-left="staff" hidden aria-hidden="true" style="display:none">Персонал <span class="count" id="staff-count">0</span></button>
-      <button data-left="alarms">Тревоги <span class="count" id="alarm-count">0</span></button>
-    </nav>
-    <section class="left-pane active" id="left-objects">
-      <input id="tree-search" type="search" placeholder="Поиск: тег, название, тип…">
-      <div id="tree" class="scroll"></div>
-    </section>
-    <section class="left-pane" id="left-staff"><div id="staff-list" class="scroll"></div></section>
-    <section class="left-pane" id="left-alarms"><div id="alarms" class="scroll"></div></section>
   </aside>
 
   <main id="main">
@@ -282,6 +276,7 @@
     <div id="view-win" class="view"><div id="win-host" class="fullhost hubhost"></div></div>
     <div id="view-maint" class="view"><div id="maint-host" class="fullhost"></div></div>
     <div id="view-scen" class="view"><div id="scen-host" class="fullhost hubhost"></div></div>
+    <div id="view-fcst" class="view"><div id="fc-host" class="fullhost hubhost"></div></div>
     <div id="view-log" class="view"><div id="log-host" class="fullhost hubhost"></div></div>
     <div id="toasts"></div>
   </main>
@@ -292,7 +287,7 @@
       <button data-side="ctl">Управление</button>
       <button data-side="maint">ТОиР</button>
     </nav>
-    <section class="side-pane active" id="side-obj"><div id="faceplate" class="scroll"><div class="empty">Выберите объект на плане, в 3D-модели или в дереве слева.</div></div></section>
+    <section class="side-pane active" id="side-obj"><div id="faceplate" class="scroll"><div class="empty">Выберите объект на плане или в 3D-модели.</div></div></section>
     <section class="side-pane" id="side-ctl"><div id="ctl" class="scroll"></div></section>
     <section class="side-pane" id="side-maint"><div id="asset-card" class="scroll"></div></section>
   </aside>

@@ -30,6 +30,11 @@ export function buildSites(plan,fac,yards,T){
  const roadGeometry=Object.entries(T).filter(([n])=>n.startsWith('road-')).flatMap(([,t])=>parse(t.attributes.geometry)||[]);
  const nearest=p=>{let best=null,dist=Infinity;for(const pl of roadGeometry)for(let i=1;i<pl.length;i++){const a=pl[i-1],b=pl[i],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1))),q=[a[0]+t*dx,a[1]+t*dy],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<dist){dist=d;best=q;}}return best;};
  // Repair shop: real 64 × 34 m hall, three front gates, office, parts store and wash area.
+ // Стоянка техники на время взрывных работ (паспорт карьера parking): площадка у развязки J1, места 2 × 3.
+ const park=parse(attr(T,'pit').parking);
+ if(park){const along=(o)=>(u=0,r=0)=>[o[0]+u*Math.cos(park.h)+r*Math.sin(park.h),o[1]+u*Math.sin(park.h)-r*Math.cos(park.h)],f=along([park.x,park.y]),nf=along(park.node);
+  apron(f,0,0,park.l,park.w,'Стоянка техники');
+  for(let row=0;row<(park.rows??2);row++)for(const lat of(park.lat_m??[0,13,-13])){const u0=-row*(park.slot_m??18);line([[u0+6,lat-4.5],[u0-9,lat-4.5],[u0-9,lat+4.5],[u0+6,lat+4.5]].map(([u,r])=>nf(u,r)),yards,{stroke:'#8a836f'});}}
  apron(F.ws,6,23,142,94,null,service);
  route([F.ws(-58,46),F.ws(90,46),F.ws(110,43)],24);
  // The published service road is drawn by Plan.buildRoads; no diagonal shortcut across the depot.

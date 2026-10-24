@@ -228,8 +228,8 @@ tr.click { cursor: pointer; } tr.click:hover { background: var(--panel-2); } tr.
 /* переключение объектов: список слева и вкладки «3D-модель / Мнемосхема» в шапке — как в мнемосхемах НПЗ */
 .hidden-nav { display: none !important; }
 .view > nav.objbar { display: none; }
-.objswitch { display: flex; flex-direction: column; gap: 4px; padding: 8px; overflow-y: auto; flex: 0 1 auto; max-height: 52%; border-bottom: 1px solid var(--line); }
-.objswitch button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; padding: 6px 10px 6px 15px; border-radius: 8px;
+.objswitch { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.objswitch button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; padding: 4px 10px 4px 15px; border-radius: 8px;
   background: var(--panel-2); border: 1px solid var(--line); font-weight: 560; font-size: 12.5px; color: var(--text); cursor: pointer; }
 .objswitch button::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 4px; border-radius: 2px; background: var(--c, var(--accent)); }
 .objswitch button:hover { border-color: var(--accent); }
@@ -318,3 +318,45 @@ body.module-screen #app{--rw:0px!important}body.module-screen #right,body.module
 .guide-dialog-head h2{margin:0;font-size:18px}
 .guide-dialog-content{padding:4px 24px 24px}
 @media(max-width:600px){.guide-dialog-head,.guide-dialog-content{padding-left:14px;padding-right:14px}.guide-dialog-head h2{font-size:16px}}
+
+/* ---- прогноз на сутки */
+.fc-layout { display: grid; grid-template-columns: minmax(360px, 430px) 1fr; gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .fc-layout { grid-template-columns: 1fr; } }
+.fc-groups { max-height: calc(100vh - 330px); overflow: auto; padding-right: 4px; }
+.fc-group .osh { margin-top: 8px; }
+.fc-sit { border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; margin-bottom: 5px; background: var(--panel-2); }
+.fc-sit.on { border-color: var(--warn); }
+.fc-name { display: flex; gap: 6px; align-items: center; cursor: pointer; font-weight: 550; }
+.fc-opts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 6px 0 2px 22px; color: var(--muted); font-size: 12px; }
+.fc-run { margin: 10px 0 6px; } .fc-run .spacer { flex: 1; }
+.fc-bar { position: relative; height: 22px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; margin: 4px 0 8px; }
+.fc-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, rgba(74,163,255,.55), rgba(74,163,255,.9)); transition: width .6s ease; }
+.fc-bar span { position: relative; display: block; text-align: center; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 9px; margin-bottom: 9px; }
+.kpi-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; display: flex; flex-direction: column; gap: 2px; }
+.kpi-card span { color: var(--muted); font-size: 11px; } .kpi-card b { font-size: 19px; font-variant-numeric: tabular-nums; } .kpi-card small { color: var(--muted); font-size: 11px; }
+.kpi-card.bad b { color: var(--alarm); }
+.fc-rec.ok { border-color: var(--ok); } .fc-rec-t { font-size: 15px; font-weight: 650; margin-bottom: 3px; color: var(--ok); }
+.fc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.fc-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.fc-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+.fc-table tr.best td { background: rgba(63,185,80,.08); } .fc-table .pos { color: var(--ok); } .fc-table .neg { color: var(--alarm); }
+.fc-chart { width: 100%; height: auto; display: block; } .fc-chart text { fill: var(--muted); font-size: 11px; }
+.fc-chart .fc-grid { stroke: var(--line); } .fc-chart .fc-band { fill: rgba(227,160,8,.10); }
+.fc-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--muted); }
+.fc-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.fc-pill { display: flex; align-items: center; gap: 7px; background: rgba(74,163,255,.14); border: 1px solid var(--accent); color: var(--text); border-radius: 14px; padding: 3px 10px; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fc-pill[hidden] { display: none; }
+.fc-mini { position: relative; width: 54px; height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+.fc-mini i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.toast.fc-toast { pointer-events: auto; border-left-color: var(--ok); display: flex; gap: 10px; align-items: center; max-width: 440px; }
+.btn.steady { border-color: rgba(63,185,80,.7); color: var(--ok); font-weight: 650; white-space: nowrap; } .btn.steady:hover { background: rgba(63,185,80,.15); }
+
+/* ---- колокольчик тревог */
+.bellwrap { position: relative; }
+.bell { position: relative; display: flex; align-items: center; justify-content: center; width: 34px; height: 30px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.bell:hover { border-color: var(--accent); color: var(--text); } .bell.warn { color: var(--warn); } .bell.alarm { color: var(--alarm); border-color: rgba(248,81,73,.6); }
+.bell .count { position: absolute; top: -6px; right: -6px; min-width: 17px; padding: 0 4px; line-height: 17px; font-size: 11px; background: var(--warn); color: #1b1b1b; }
+.bell .count.alarm { background: var(--alarm); color: #fff; } .bell .count[hidden] { display: none; }
+.bell-panel { left: auto; right: 0; width: 380px; max-height: 70vh; padding: 6px; display: flex; flex-direction: column; } .bell-panel[hidden] { display: none; }
+.bell-panel .scroll { overflow-y: auto; max-height: calc(70vh - 14px); }

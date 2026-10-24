@@ -8,6 +8,43 @@ function mesh(s,positions,material){const geo=new THREE.BufferGeometry();geo.set
 function pushTri(out,a,b,c){for(const p of[a,b,c])out.push(p[0],p[2],-p[1]);}
 function resample(pl,step=2){const out=[pl[0]];for(let i=1;i<pl.length;i++){const a=pl[i-1],b=pl[i],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step));for(let j=1;j<=n;j++)out.push(a.map((v,k)=>v+(b[k]-v)*j/n));}return out;}
 function tangent(pl,i){const a=pl[Math.max(0,i-1)],b=pl[Math.min(pl.length-1,i+1)],d=Math.hypot(b[0]-a[0],b[1]-a[1])||1;return [(b[0]-a[0])/d,(b[1]-a[1])/d];}
+// Стоянка техники на время взрывных работ (паспорт карьера: parking): x, y — центр, h — курс заезда, w × l, м.
+function parkingOf(s){try{const p=JSON.parse(s.pit?.parking||'null');return p&&Number.isFinite(p.x)?p:null;}catch{return null;}}
+function parkingTest(s,margin=0){const p=parkingOf(s);if(!p)return()=>false;const c=Math.cos(p.h),n=Math.sin(p.h);
+ return(x,y)=>{const dx=x-p.x,dy=y-p.y,u=dx*c+dy*n,r=dx*n-dy*c;return Math.abs(u)<=p.l/2+margin&&Math.abs(r)<=p.w/2+margin;};}
+function signTexture(lines){const cv=document.createElement('canvas');cv.width=512;cv.height=256;const g=cv.getContext('2d');g.fillStyle='#1d5f9e';g.fillRect(0,0,512,256);g.strokeStyle='#fff';g.lineWidth=10;g.strokeRect(10,10,492,236);
+ g.fillStyle='#fff';g.textAlign='center';g.font='bold 120px sans-serif';g.fillText('P',80,170);g.font='bold 40px sans-serif';lines.forEach((t,i)=>g.fillText(t,310,95+i*56));const tx=new THREE.CanvasTexture(cv);tx.anisotropy=4;return tx;}
+export function buildParking(s){
+ const p=parkingOf(s);if(!p)return null;
+ const c=Math.cos(p.h),n=Math.sin(p.h),at=(u,r)=>[p.x+u*c+r*n,p.y+u*n-r*c];
+ const ground=(x,y)=>{const h=s.sampler(x,-y,0);return h===null?0:h;};
+ const grp=new THREE.Group();grp.name='parking';
+ // покрытие: щебёночная площадка по рельефу (сетка 2 м), чуть выше дорожного полотна
+ const pos=[],N=Math.round(p.l/2),M=Math.round(p.w/2);
+ const v=(i,j)=>{const[x,y]=at(-p.l/2+i*p.l/N,-p.w/2+j*p.w/M);return[x,y,ground(x,y)+.09];};
+ for(let i=0;i<N;i++)for(let j=0;j<M;j++){const A=v(i,j),B=v(i+1,j),C=v(i,j+1),D=v(i+1,j+1);if(![A,B,C,D].every(q=>s.inBlock(q[0],q[1])))continue;pushTri(pos,A,B,C);pushTri(pos,C,B,D);}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();
+ const pad=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x83807a,roughness:1,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));pad.receiveShadow=true;grp.add(pad);
+ // разметка мест: 2 ряда × 3 места, место 9 × 15 м; передний ряд — у кромки, шаг рядов 18 м
+ const node=p.node,line=new THREE.MeshBasicMaterial({color:0xf2efe6}),front=p.front??7;
+ const strip=(x0,y0,x1,y1)=>{const L=Math.hypot(x1-x0,y1-y0),m=new THREE.Mesh(new THREE.BoxGeometry(L+.45,.06,.45),line),mx=(x0+x1)/2,my=(y0+y1)/2;m.position.copy(V(mx,my,Math.max(ground(x0,y0),ground(x1,y1))+.2));m.rotation.y=Math.atan2(y1-y0,x1-x0);grp.add(m);};
+ const fromNode=(u,r)=>[node[0]+u*c+r*n,node[1]+u*n-r*c];
+ for(let row=0;row<(p.rows??2);row++)for(const lat of(p.lat_m??[0,13,-13])){const u0=-row*(p.slot_m??18),pts=[[u0+6,lat-4.5],[u0-9,lat-4.5],[u0-9,lat+4.5],[u0+6,lat+4.5]].map(([u,r])=>fromNode(u,r));
+  for(let k=0;k<3;k++)strip(...pts[k],...pts[k+1]);}
+ // обвалование 1,5 м по трём сторонам; сзади (со стороны подъезда) — въезд
+ const bm=new THREE.MeshStandardMaterial({color:0x9b8c74,roughness:1});
+ const berm=(u0,r0,u1,r1)=>{const[a,b]=[at(u0,r0),at(u1,r1)],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
+  const k=Math.max(1,Math.round(L/6));for(let i=0;i<k;i++){const t=(i+.5)/k,x=a[0]+(b[0]-a[0])*t,y=a[1]+(b[1]-a[1])*t;if(!s.inBlock(x,y,-2))continue;const m=new THREE.Mesh(new THREE.BoxGeometry(L/k,1.5,3),bm);m.position.copy(V(x,y,ground(x,y)+.75));m.rotation.y=Math.atan2(b[1]-a[1],b[0]-a[0]);m.castShadow=true;grp.add(m);}};
+ const hl=p.l/2+2,hw=p.w/2+2;berm(hl,-hw,hl,hw);berm(-4,hw,hl,hw);berm(-4,-hw,hl,-hw);       // задняя половина открыта: подъезд входит под углом
+ // указатель у въезда
+ const[sx,sy]=at(-p.l/2+6,p.w/2-3),z0=ground(sx,sy);
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,4.2,8),new THREE.MeshStandardMaterial({color:0x8a949c}));pole.position.copy(V(sx,sy,z0+2.1));grp.add(pole);
+ const board=new THREE.Mesh(new THREE.PlaneGeometry(5,2.5),new THREE.MeshBasicMaterial({map:signTexture(['СТОЯНКА','ТЕХНИКИ','при взрывах']),side:THREE.DoubleSide}));
+ board.position.copy(V(sx,sy,z0+4.4));board.rotation.y=p.h+Math.PI/2;grp.add(board);
+ s.scene.add(grp);s.parking=grp;
+ const[lx,ly]=at(0,0);if(s.label)s.label('parking','Стоянка техники',V(lx,ly,ground(lx,ly)+12),true);
+ return grp;
+}
 export function buildPitRoads(s){
  const raw=[];for(const[name,pls]of Object.entries(s.roads))for(const line of pls){const pl=s.clip(line);if(pl.length>1)raw.push({name,pl});}
  const junctions=[];for(const r of raw)for(const p of[r.pl[0],r.pl.at(-1)])if(raw.some(q=>q!==r&&q.pl.some(v=>Math.hypot(v[0]-p[0],v[1]-p[1])<3&&Math.abs(v[2]-p[2])<1)))junctions.push(p);
@@ -15,6 +52,7 @@ export function buildPitRoads(s){
  const crossing=(x,y,z,r=17)=>junctions.some(p=>Math.abs(p[2]-z)<1&&Math.hypot(p[0]-x,p[1]-y)<r);
  const supported=(x,y,z)=>{const h=s.sampler(x,-y,z);return h!==null&&Math.abs(h-z)<(s.roadDesign?2:.8)&&s.inBlock(x,y,-.5)?h:null;};
  const road=[],shoulder=[],berms=[],drains=[],posts=[],sections=[],sweeps=[];
+ const inPad=parkingTest(s,6);
  const field=s.field,wet=(x,y)=>x>field.x0&&x<field.x0+(field.nx-1)*field.dx&&y>field.y0&&y<field.y0+(field.ny-1)*field.dx&&s.H(x,y)<-.05;
  for(const{name,pl:original}of raw){const pl=resample(original),ramp=name.includes('ramp'),access=name.includes('access'),surface=original.every(p=>p[2]>-.5),width=s.roadDesign?(ramp?28:access?22:28):(ramp?20:access?16:22);
   let valid=0,total=0,minWidth=Infinity,joined=0;
@@ -26,7 +64,7 @@ export function buildPitRoads(s){
   for(let i=0;i<rows.length-1;i++){const a=rows[i],b=rows[i+1];for(let c=0;c<12;c++){total++;const p=a.cols[c],q=a.cols[c+1],r=b.cols[c],t=b.cols[c+1];if(!p||!q||!r||!t)continue;pushTri(road,p,r,q);pushTri(road,q,r,t);valid++;}
    // Shoulders and an open U-shaped drainage channel follow the supported outer edge.
    for(const side of [-1,1]){
-    if(a.join||b.join)continue;const edge=a.shift+side*a.half,edgeB=b.shift+side*b.half;
+    if(a.join||b.join||inPad(a.p[0],a.p[1])||inPad(b.p[0],b.p[1]))continue;const edge=a.shift+side*a.half,edgeB=b.shift+side*b.half;
     const pts=(row,d)=>{const x=row.p[0]+row.nx*d,y=row.p[1]+row.ny*d,h=supported(x,y,row.p[2]);return h===null?null:[x,y,h+.025];};
     if(!ramp){const p=pts(a,edge),q=pts(a,edge+side*1),r=pts(b,edgeB),t=pts(b,edgeB+side*1);if(p&&q&&r&&t){pushTri(shoulder,p,r,q);pushTri(shoulder,q,r,t);}}
     if((ramp&&side===a.outer)||(!ramp&&surface&&side===a.outer)){
@@ -38,7 +76,7 @@ export function buildPitRoads(s){
      if(feet.every(Boolean)){const top=(row,d)=>{const p=pts(row,d);return p?[p[0],p[1],p[2]+1.8]:null;},ta=top(a,offset-.45),tb=top(a,offset+.45),tc=top(b,offsetB-.45),td=top(b,offsetB+.45);if(ta&&tb&&tc&&td){const[A,B,C,D]=feet;for(const[p,q,r,t]of[[A,ta,C,tc],[ta,tb,tc,td],[tb,B,td,D]]){pushTri(berms,p,r,q);pushTri(berms,q,r,t);}}}
     }
    }
-   if(i%20===0&&!a.join)for(const side of [-1,1]){const d=a.shift+side*(a.half-.15),p=[a.p[0]+a.nx*d,a.p[1]+a.ny*d],h=supported(...p,a.p[2]);if(h!==null)posts.push([...p,h]);}
+   if(i%20===0&&!a.join&&!inPad(a.p[0],a.p[1]))for(const side of [-1,1]){const d=a.shift+side*(a.half-.15),p=[a.p[0]+a.nx*d,a.p[1]+a.ny*d],h=supported(...p,a.p[2]);if(h!==null)posts.push([...p,h]);}
   }
   // Audit the complete six-wheel footprint, including the model's 5 m lane offset, along the source trajectory.
   let supportedWheels=0,wheelTests=0;for(let i=0;i<pl.length;i+=3){const p=pl[i],[tx,ty]=tangent(pl,i);for(const lane of[-(s.pit?.lane_offset_m??5),s.pit?.lane_offset_m??5])for(const[x,z]of[[4.4,-3.15],[4.4,3.15],[-2.9,-3.5],[-2.9,3.5]]){wheelTests++;const xx=p[0]+tx*x-ty*(lane+z),yy=p[1]+ty*x+tx*(lane+z);if(!s.inBlock(xx,yy,-1)){wheelTests--;continue;}if(supported(xx,yy,p[2])!==null)supportedWheels++;}}

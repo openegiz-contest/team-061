@@ -102,6 +102,16 @@ def init(m):
     for s in m.equipment_specs:m.equipment_children.setdefault(s['parent'],[]).append(s)
 
 def available(m,id,seen=None):
+    # Forecast copies cache availability within one step; the live model always evaluates it directly.
+    cache=getattr(m,'_avail_cache',None)
+    if cache is not None:
+        if cache[0]!=m.t:cache[0]=m.t;cache[1].clear()
+        r=cache[1].get(id)
+        if r is None:r=cache[1][id]=_available(m,id)
+        return r
+    return _available(m,id)
+
+def _available(m,id):
     u=getattr(m,'equipment',{}).get(id)
     if u and (u['out'] or u['fault']):return False
     # Parent isolation and serial dependencies apply to each component.

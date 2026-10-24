@@ -10,18 +10,13 @@ export const NAVIGATION = [
 { view: "tls", name: "Хвосты и насосная", color: "#8c7b68", scene: "tls", pair: ["tls", "tlshmi"] , group:"Хвосты и оборотная вода"},
 { view: "tsf", name: "Хвостохранилище и вода", color: "#4f8fb0", scene: "tsf", pair: ["tsf", "tsfhmi"] , group:"Хвосты и оборотная вода"},
 { view: "dump", name: "Отвал вскрышных пород", color: "#93816b", scene: "dump" , group:"Ветвь вскрыши"},
-{ view:"mod:production",name:"Производственный план",color:"#72b77a" , group:"Управление и справка"},
-{view:"mod:product",name:"Качество концентрата",color:"#b19b6b",group:"Управление и справка"},
-{view:"mod:economy",name:"Экономика рудника",color:"#74b88b",group:"Управление и справка"},
-{view:"mod:safety",name:"Безопасность и экология",color:"#e3b25e",group:"Управление и справка"},
-{view:"mod:guide",name:"Технологический процесс",color:"#72b7b0", group:"Управление и справка"},
-{ view: "mods", name: "Модули", color: "#7a8693" , group:"Управление и справка"},
-{ view: "scen", name: "Сценарии", color: "#7a8693" , group:"Управление и справка"},
-{ view: "log", name: "Журнал", color: "#7a8693" , group:"Управление и справка"},
 { view: "dw", name: "Водоотлив", color: "#3fb6c9", scene: "dw", pair: ["dw", "dwhmi"] , group:"Обеспечение производства"},
 { view: "gpp", name: "ГПП и энергоснабжение", color: "#e85d5d", scene: "gpp", pair: ["gpp", "gpphmi"] , group:"Обеспечение производства"},
 { view: "fs", name: "АЗС и склад ГСМ", color: "#d9c25a", scene: "fs", pair: ["fs", "fshmi"] , group:"Обеспечение производства"},
 { view: "ws", name: "Ремонтная мастерская", color: "#c0873a", scene: "ws", pair: ["ws", "wshmi"] , group:"Обеспечение производства"},
-{ view: "maint", name: "ТОиР", color: "#7a8693" , group:"Обеспечение производства"},
-{ view: "mod:staff", name: "Персонал", color: "#4a9fb0" , group:"Обеспечение производства"}
+{ view: "maint", name: "ТОиР", color: "#7a8693" , group:"Управление"},
+{ view: "fcst", name: "Прогноз «что если»", color: "#4aa3ff" , group:"Управление"},
+{ view: "scen", name: "Ситуации на руднике", color: "#7a8693" , group:"Управление"},
+{ view: "log", name: "Журнал", color: "#7a8693" , group:"Управление"},
+{ view: "mods", name: "Модули рудника", color: "#72b77a" , group:"Модули"}
 ];

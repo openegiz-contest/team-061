@@ -85,7 +85,9 @@ BAY_LAT_CR = (3.5, 17.5)      # места ККД правее полосы по
 SERVICE = ("spot", "loading", "dumping", "fueling", "repair")
 RETREAT_M = 130.0       # экскаватор перед взрывом отходит по заезду на 130 м (люди — за 300 м, техника — на расстояние и за укрытие)
 RETREAT_V = 0.45        # м/с (≈ 1,6 км/ч — ход гусеничного экскаватора)
-SHELTERS = ("FS", "WS", "ROM", "DUMP", "CR")     # пункты ожидания самосвалов за пределами опасной зоны (тупиковые, не мешают проезду)
+SHELTERS = ("PARK", "FS", "WS", "ROM", "DUMP", "CR")   # стоянка техники; остальные — запасные пункты ожидания вне опасной зоны
+ROAD_WORKS_KMH = 15.0   # ограничение скорости на участке с дорожными работами ТОиР (движение по одной полосе)
+PARK_COLS = 3           # стоянка: ряды по три самосвала, шаг рядов SLOT
 OCCUPY = ("to_rom_load", "queue_rom", "to_load", "queue_load", "spot", "loading", "haul", "queue_dump", "dumping", "to_fuel", "fueling", "to_ws", "repair")
 
 
@@ -281,6 +283,8 @@ class Mine:
         lim = G.SPEED_LIMIT[e["seg"]] * (0.7 if self._wet() else 1.0)
         if e["seg"] == self.slope_seg and self.slope["tarp"] == "внимание":
             lim = min(lim, 15.0)
+        if e["seg"] in getattr(self, "road_works", ()):          # дорожные работы под движением: одна полоса
+            lim = min(lim, ROAD_WORKS_KMH)
         m = tr.mass * 1000
         if grade + rr > 0.005:
             v = TRUCK_SPEC["kw"] * 1000 * TRUCK_SPEC["eta"] / (m * G_ACC * (grade + rr)) * 3.6
@@ -366,6 +370,11 @@ class Mine:
             waiting=sorted((x for x in self.trucks.values() if x.src=="ROM" and x.dest=="ROM" and x.state in ("to_rom_load","queue_rom")),key=lambda x:(self._remaining(x),x.id))
             k=waiting.index(tr) if tr in waiting else len(waiting)
             return 45+SLOT*k,k,0.0
+        if d == "PARK":                                   # стоянка: место по порядку прибытия, ряды по три
+            occ = sorted((x for x in self.trucks.values() if x.dest == "PARK" and x.state in ("to_shelter", "sheltered")),
+                         key=lambda x: (getattr(x, "park_k", 99), self._remaining(x), x.id))
+            k = occ.index(tr) if tr in occ else len(occ)
+            return SLOT * (k // PARK_COLS), k, BAY_LAT[3][k % PARK_COLS]
         cap = self.stand_cap.get(d, 1)
         occ = [x for x in self.trucks.values() if x.dest == d and x.route and x.state in OCCUPY and not (d=="ROM" and x.src=="ROM")]
         occ.sort(key=lambda x: (0 if x.state in SERVICE else 1, self._remaining(x), x.id))
@@ -631,10 +640,13 @@ class Mine:
         tr.reverse=False
         if tr.state == "sheltered":
             tr.v, tr.speed = 0.0, 0.0
+            if tr.dest == "PARK" and tr.turn <= 0:
+                self._place(tr, self._stand(tr)[2], dt)
             face = tr.evac[2]
             if self.blast_pending != face and self.air["blast_hold"] <= 0:           # взрыв прошёл, зона проветрена — возвращаемся к работе
                 dest, old, _ = tr.evac
                 tr.evac = None
+                tr.park_k = 99
                 if tr.payload > 1 and dest:
                     self._go(tr, dest, "haul")
                 else:
@@ -1240,7 +1252,8 @@ class Mine:
     # ------------------------------------------------------------ погода
     def _weather(self, dt):
         wx = self.wx
-        target_rain = float(self.scen.get("rain", {}).get("mmh", 12.0)) if self.scen.get("rain") else 0.0
+        rain_scen = self.scen.get("rain")
+        target_rain = (float(rain_scen.get("mmh", 12.0)) if isinstance(rain_scen, dict) else 12.0) if rain_scen else 0.0     # без параметра — интенсивность по умолчанию
         wx["rain"] += (target_rain - wx["rain"]) * min(1.0, dt / 600)
         calm = bool(self.scen.get("calm"))
         wx["inversion"] = calm
@@ -1344,8 +1357,8 @@ class Mine:
 
     def _evacuate_trucks(self, f):
         """Самосвалы в радиусе 300 м от блока уходят в ближайший пункт ожидания за пределами зоны и ждут окончания взрыва и проветривания."""
-        node = min((n for n in SHELTERS if math.dist(G.GRAPH.nodes[n][:2], f.center[:2]) >= 330.0),
-                   key=lambda n: math.dist(G.GRAPH.nodes[n][:2], f.center[:2]), default=None)
+        safe = [n for n in SHELTERS if math.dist(G.GRAPH.nodes[n][:2], f.center[:2]) >= 330.0]
+        node = "PARK" if "PARK" in safe else min(safe, key=lambda n: math.dist(G.GRAPH.nodes[n][:2], f.center[:2]), default=None)
         if node is None:
             return
         for tr in self.trucks.values():
@@ -1362,6 +1375,12 @@ class Mine:
             else:
                 tr.state = "blast_hold"
                 tr.prev_state = tr.evac[1]
+        if node == "PARK":                                  # места раздаются по очереди прибытия: ближний занимает передний ряд
+            taken = [t for t in self.trucks.values() if t.dest == "PARK" and t.state in ("to_shelter", "sheltered") and getattr(t, "park_k", 99) < 99]
+            new = sorted((t for t in self.trucks.values() if t.dest == "PARK" and t.state == "to_shelter" and getattr(t, "park_k", 99) >= 99),
+                         key=lambda t: (self._remaining(t), t.id))
+            for k, t in enumerate(new, start=max([t.park_k + 1 for t in taken] or [0])):
+                t.park_k = k
 
     def _blast(self, f, bad=False):
         p = f.props()
@@ -1470,7 +1489,7 @@ SHOVEL_FACE = {s: v[1] for s, v in SHOVELS.items()}
 SHOVELS_FOR_FACE = {v[1]: s for s, v in SHOVELS.items()}
 FACE_NAME = {"F1": "F1, руда, дно −90 м", "F2": "F2, руда, −45 м", "F3": "F3, вскрыша, −15 м"}
 DEST_NAME = {"CR": "ККД", "ROM": "перегрузочному складу", "DUMP": "отвалу", "FS": "АЗС", "WS": "ремонтному боксу",
-             "F1": "забою F1", "F2": "забою F2", "F3": "забою F3"}
+             "F1": "забою F1", "F2": "забою F2", "F3": "забою F3", "PARK": "стоянке техники"}
 FIXED_PLAN = {"TR-01": "EX-1", "TR-02": "EX-1", "TR-03": "EX-2", "TR-04": "EX-2", "TR-05": "EX-3", "TR-06": "EX-3",
               "TR-07": "EX-1", "TR-08": "EX-2"}
 

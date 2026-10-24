@@ -25,6 +25,7 @@ import paho.mqtt.client as mqtt
 
 import crushing as CRUSH
 import facilities as FAC
+import forecast as FC
 import flotation as FLOT
 import thickening as THK
 import grinding as GRIND
@@ -109,6 +110,7 @@ class Sim:
         self.seq=state['seq'] if state else -1
         self.carry=state.get('carry',0.) if state else 0.
         self.client=None;self.stop=threading.Event();self.command_error=None
+        self.fc=FC.Forecaster()
         if state:log.info('Точное восстановление: t=%.1f, seq=%d, резерв=%s',self.m.t,self.seq,self.store.recovered)
 
     # ------------------------------------------------------------ команды Стенда
@@ -196,6 +198,12 @@ class Sim:
                 pe = next((x for x in m.persons if x.id == v.get("id")), None)
                 if pe:
                     m.log("info", f"Диспетчер вызвал на связь: {pe.role} ({pe.tag}), зона «{pe.zone}»")
+            elif kind == "steady":
+                import steady
+                steady.restore(m)
+            elif kind == "forecast":
+                if v.get("action") == "cancel":self.fc.cancel(m)
+                else:self.fc.start(m, v)
             elif kind == "reset":
                 for a in SC.active(m):
                     SC.apply(m, a["id"], False, a["params"])
@@ -247,15 +255,18 @@ class Sim:
                 self.carry+=elapsed*self.m.speed
                 count=min(int(self.carry),300);self.carry-=count
                 for _ in range(count):self.m.step(1.)
+                self.fc.poll(self.m)
                 if now-last_save>=interval:
                     self.store.save(self.m,self.seq,self.carry);last_save=now
                 if now-publisher.last_sample>=1.:
                     snapshot=T.snapshot(self.m)
+                    snapshot['forecast']=self.fc.view()
                     snapshot['mine'].update(telemetry_unix=T._f(time.time(),'с',3),checkpoint_unix=T._f(self.store.saved_at,'с',3),checkpoint_ok=T._f(not bool(self.store.backup_error)))
                     publisher.sample(snapshot,now)
                 publisher.flush(now)
                 self.stop.wait(.1)
         finally:
+            self.fc.cancel()
             if self.client:self.client.loop_stop();self.client.disconnect()
             if self.stop.is_set() and self.command_error is None:
                 self.store.save(self.m,self.seq,self.carry)

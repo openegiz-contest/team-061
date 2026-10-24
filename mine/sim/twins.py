@@ -62,7 +62,7 @@ def definitions(m):
         commodity="Cu", design_mill_tph=M.MILL_SP, cutoff_cu_pct=M.CUTOFF)
     add("pit", root, "open-pit", "Карьер «Кенташ»", depth_m=G.DEPTH, bench_m=G.BENCH, top_size_m=top_size, ramp_grade_pct=9, benches=G.N_BENCH,
         r_bottom_m=G.R_BOTTOM, wall_k=round(G.WALL_K, 4), ellipse=[G.EX, G.EY], perimeter_n=G.N, grade_grid=json.dumps(grade_grid()),
-        geometry_version=2, lane_offset_m=M.LANE, road_width_m=28, access_width_m=22, shell="pit_shell.json — проектная оболочка (та же геометрия, что у дорог модели)")
+        geometry_version=2, parking=json.dumps(G.parking()), lane_offset_m=M.LANE, road_width_m=28, access_width_m=22, shell="pit_shell.json — проектная оболочка (та же геометрия, что у дорог модели)")
     add("plant", root, "processing-plant", "Обогатительная фабрика", capacity_tph=M.MILL_SP, flowsheet="ККД → МПСИ → МШЦ → флотация")
     add("power", root, "substation", "ГПП-110/6 кВ", limit_kw=M.GPP_LIMIT_KW, transformers="2 × 40 МВА")
     pit, plant, power = tid("pit"), tid("plant"), tid("power")
@@ -229,6 +229,9 @@ def definitions(m):
     add("economics", root, "module", "Экономика смены: выручка, затраты, прибыль")
     add("scenario-engine", root, "module", "Сценарии «что если»: активные и журнал",
         catalog=json.dumps([{"id": c[0], "title": c[1], "about": c[2], "params": c[3]} for c in SC.CATALOG], ensure_ascii=False))
+    import forecast as FC
+    add("forecast", root, "module", "Прогноз на сутки и рекомендации диспетчеру",
+        measures=json.dumps(FC.catalog(), ensure_ascii=False), horizons=list(FC.HORIZONS), step_s=FC.DT)
     add("control", root, "control", "Пульт Стенда: команды сценариев и режимов (пишет интерфейс)")
     # связи между двойниками (кроме иерархии _parents): питание, поток материала, обслуживание
     rel = {
@@ -249,7 +252,7 @@ def definitions(m):
         if a < b:
             rel.setdefault(f"road-{e['seg']}", {}).setdefault("connects", [])
             for nd in (a, b):
-                if nd in ("CR", "ROM", "DUMP", "FS", "WS", "F1", "F2", "F3") and nd not in rel[f"road-{e['seg']}"]["connects"]:
+                if nd in ("CR", "ROM", "DUMP", "FS", "WS", "PARK", "F1", "F2", "F3") and nd not in rel[f"road-{e['seg']}"]["connects"]:
                     rel[f"road-{e['seg']}"]["connects"].append(nd)
     for name, r in rel.items():
         d[tid(name)]["attributes"]["relations"] = r
@@ -324,8 +327,9 @@ def snapshot(m):
     for seg in G.SEGMENTS:
         n = sum(1 for tr in m.trucks.values() if tr.route and tr.seg_i < len(tr.route) - 1
                 and G.GRAPH.edges[(tr.route[tr.seg_i], tr.route[tr.seg_i + 1])]["seg"] == seg)
-        out[f"road-{seg}"] = {"open": _f(seg not in m.closed), "wet": _f(bool(m._wet())), "trucks": _f(n, "шт"),
-                              "speed_limit": _f(G.SPEED_LIMIT[seg] * (0.7 if m._wet() else 1.0) if not (seg == m.slope_seg and m.slope["tarp"] == "внимание") else 15.0, "км/ч", 0)}
+        works = seg in getattr(m, "road_works", ())
+        out[f"road-{seg}"] = {"open": _f(seg not in m.closed), "wet": _f(bool(m._wet())), "trucks": _f(n, "шт"), "works": _f(works),
+                              "speed_limit": _f(M.ROAD_WORKS_KMH if works else G.SPEED_LIMIT[seg] * (0.7 if m._wet() else 1.0) if not (seg == m.slope_seg and m.slope["tarp"] == "внимание") else 15.0, "км/ч", 0)}
     dw = m.dw
     out["dewatering"] = {"sump_m3": _f(dw.sump, "м³", 0), "sump_pct": _f(dw.level, "%", 1), "inflow": _f(dw.inflow, "м³/ч", 0),
                          "outflow": _f(dw.out, "м³/ч", 0), "power_kw": _f(dw.kw, "кВт", 0), "face_F1_flooded": _f(m.faces["F1"].flooded),
@@ -603,6 +607,7 @@ def snapshot(m):
     out['dispatch']['safety']=_f(json.dumps(safety.view(m),ensure_ascii=False))
     import incidents
     out['dispatch']['incidents']=_f(json.dumps(incidents.view(m),ensure_ascii=False))
+    out['forecast']={'state':_f('idle'),'progress':_f(0.,'%'),'run_id':_f(0),'result':_f(''),'request':_f(''),'error':_f('')}   # симулятор подставляет состояние прогноза
     for pp in m.people.all:
         out[pp.id] = {"x": _f(pp.pos[0], "м", 1), "y": _f(pp.pos[1], "м", 1), "z": _f(pp.pos[2], "м", 1), "speed": _f(pp.speed, "км/ч", 1),
                       "state": _f(pp.state), "task": _f(pp.task)}

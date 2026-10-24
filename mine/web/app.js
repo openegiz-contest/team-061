@@ -5,7 +5,7 @@ import {RomScene} from './rom3d.js';
 import {openTruckInspector} from './truck-inspector.js';
 // Стенд цифрового рудника «Кенташ»: данные — только из платформы OpenEgiz (Eclipse Ditto).
 // Слева — дерево объектов, справа — карточка выбранного объекта с параметрами и управлением, в центре — окно:
-// генплан, 3D-карьер, 3D-водоотлив, модули (отдельные окна), ТОиР, сценарии, журнал.
+// генплан, 3D-карьер, 3D-водоотлив, модули (отдельные окна), ТОиР, ситуации, прогноз, журнал.
 import { T, esc, num, json, v, loadAll, stream, command, isDirty, touch, select, selection, onSelect, setToast } from "./store.js";
 import { objects, status, GROUPS, KIND_RU, tagOf, nameOf, short, sceneOf, posOf, people, STATE_RU } from "./registry.js";
 import { PB } from "./playback.js";
@@ -14,6 +14,7 @@ import { PitScene } from "./pit.js";
 import { DewaterScene } from "./dewater.js";
 import { MODULES, renderModule, renderHub } from "./windows.js";
 import { MaintUI } from "./maint.js";
+import { ForecastUI, watchForecast } from "./forecast.js";
 import { renderFaceplate, renderControls, renderAssetCard } from "./faceplate.js";
 import { DwHmi } from "./hmi_dw.js";
 import { WorkshopScene, FuelScene, GppScene } from "./fac3d.js";
@@ -52,7 +53,27 @@ function toast(s) {
   const d = document.createElement("div"); d.className = "toast"; d.textContent = s; $("toasts").appendChild(d);
   setTimeout(() => d.remove(), 3500);
 }
-setToast((err, val) => { if (err) toast(err); else if (val?.cmd === "scenario" || val?.cmd === "speed") toast(val.cmd === "speed" ? `Скорость модели: ×${val.value}` : `Сценарий: ${val.on ? "включён" : "отменён"}`); });
+setToast((err, val) => { if (err) toast(err); else if (val?.cmd === "steady") toast("На режим: команда отправлена — рудник выходит на установленный режим"); else if (val?.cmd === "forecast") toast(val.action === "cancel" ? "Прогноз: отмена отправлена" : "Прогноз запущен: ход расчёта — в шапке и на вкладке «Прогноз «что если»»"); else if (val?.cmd === "scenario" || val?.cmd === "speed") toast(val.cmd === "speed" ? `Скорость модели: ×${val.value}` : `Ситуация: ${val.on ? "включена" : "отменена"}`); });
+
+// ------------------------------------------------------------------ прогноз: индикатор в шапке и уведомление об окончании
+const fcUI = new ForecastUI($("fc-host"));
+$("fc-pill").onclick = () => setView("fcst");
+$("steady-btn").onclick = () => {
+  if (confirm("Вывести рудник на установленный режим?\n\nБудут отменены ситуации, сняты неисправности, аварийные наряды закрыты как устранённые, допуски подтверждены, дороги открыты, уставки возвращены к штатным, цепочка фабрики запущена. Плановые работы ТОиР сохраняются.")) command({ cmd: "steady" });
+};
+function forecastDone(st, r) {
+  let text = "Прогноз не выполнен: " + (v("forecast", "error") || "ошибка расчёта");
+  if (st === "done" && r) {
+    const rec = r.measures.find((m) => m.id === r.recommendation);
+    text = `Прогноз на ${r.horizon_h} ч готов: концентрат ${num(r.situation.conc.mid)} т` + (r.events.length ? (r.loss.conc >= r.noise ? `, потеря ${num(r.loss.conc)} т` : ", заметной потери нет") : "") + (rec ? `. Рекомендация: ${rec.title} (+${num(rec.gain)} т)` : ". Мер с заметным выигрышем нет");
+  }
+  const d = document.createElement("div"); d.className = "toast fc-toast"; d.innerHTML = `<b>${esc(text)}</b><button class="btn sm">Открыть</button>`;
+  d.querySelector("button").onclick = () => { setView("fcst"); d.remove(); };
+  $("toasts").appendChild(d); setTimeout(() => d.remove(), 20000);
+  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.12, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .5); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + .5); } catch {}
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden) { try { new Notification("Кенташ: прогноз готов", { body: text }); } catch {} }
+  if (document.hidden) { const t0 = document.title; document.title = "✔ Прогноз готов — " + t0; const back = () => { document.title = t0; document.removeEventListener("visibilitychange", back); }; document.addEventListener("visibilitychange", back); }
+}
 
 // ------------------------------------------------------------------ сцены и окна
 const plan = new Plan($("plan-host"));
@@ -84,7 +105,7 @@ const gr3 = new GrindScene($("scene-grind"), $("labels-grind"), (n) => select(n)
 const grhmi = new GrindHmi($("grindhmi-host"));
 pit.onOpen = (id) => focusObject(id);
 const maint = new MaintUI($("maint-host"), { toast, openAsset: null });
-let view = "plan", modId = "transport", leftTab = "objects", sideTab = "obj";
+let view = "plan", modId = "transport", sideTab = "obj";
 const ctx = {
   view: (v_) => setView(v_), module: (id) => setView(`mod:${id}`), toast,
   follow: (id) => { setView("pit"); pit.followTruck(id); },
@@ -97,7 +118,7 @@ maint.ctx = ctx;
 
 const SWITCH = NAVIGATION;
 
-const baseOf = (n) => ["mod:staff","mod:production","mod:guide","mod:economy","mod:safety","mod:product"].includes(n) ? n : n === "flothi" ? "flot" : n.endsWith("hmi") ? n.slice(0, -3) : n.startsWith("mod:") ? "mods" : n;
+const baseOf = (n) => n === "flothi" ? "flot" : n.endsWith("hmi") ? n.slice(0, -3) : n.startsWith("mod:") ? "mods" : n;
 const swCounts = {};
 function buildSwitch() {
   const btn = (s, i) => `<button data-sw="${i}" style="--c:${s.color}"><span>${s.name}</span><span class="sw-badge"></span></button>`;
@@ -198,12 +219,14 @@ document.querySelectorAll("#view-tabs button[data-view]").forEach((b) => (b.oncl
 }));
 document.querySelectorAll("[data-objbar] button").forEach((b) => (b.onclick = () => setView(b.dataset.sub)));
 function toggleMenu(force) { const m = $("mods-menu"); m.hidden = force ?? !m.hidden; }
+$("bell").onclick = (e) => { e.stopPropagation(); const p = $("bell-panel"); p.hidden = !p.hidden; if (!p.hidden) { alSig = ""; renderAlarms(); } };
+document.addEventListener("click", (e) => { const p = $("bell-panel"); if (!p.hidden && !p.contains(e.target)) p.hidden = true; });
 $("mods-menu").innerHTML = `<button data-mod="__hub"><b>Все модули</b><small>обзор</small></button>${MODULES.map((m) => `<button data-mod="${m.id}"><span>${m.n}. ${esc(m.title)}</span></button>`).join("")}`;
 $("mods-menu").querySelectorAll("button").forEach((b) => (b.onclick = () => { toggleMenu(false); setView(b.dataset.mod === "__hub" ? "mods" : `mod:${b.dataset.mod}`); }));
 document.addEventListener("click", (e) => { if (!e.target.closest(".ddwrap")) $("mods-menu").hidden = true; });
 document.addEventListener("keydown", (e) => {
   if (/input|select|textarea/i.test(e.target.tagName)) return;
-  const k = { 1: "plan", 2: "pit", 3: "dw", 4: "flot", 5: "mods", 6: "maint", 7: "scen", 8: "log" }[e.key];
+  const k = { 1: "plan", 2: "pit", 3: "fcst", 4: "scen", 5: "maint", 6: "log", 7: "mods" }[e.key];
   if (k) setView(k);
 });
 
@@ -273,12 +296,6 @@ for (const [sp, key, sign, def, min, max] of [["split-left", "lw", 1, 300, 200, 
 }
 
 // ------------------------------------------------------------------ вкладки панелей
-document.querySelectorAll("#left-tabs button").forEach((b) => (b.onclick = () => {
-  leftTab = b.dataset.left;
-  document.querySelectorAll("#left-tabs button").forEach((x) => x.classList.toggle("active", x === b));
-  document.querySelectorAll(".left-pane").forEach((p) => p.classList.toggle("active", p.id === `left-${leftTab}`));
-  touch();
-}));
 document.querySelectorAll("#side-tabs button").forEach((b) => (b.onclick = () => setSide(b.dataset.side)));
 function setSide(s) {
   sideTab = s;
@@ -317,53 +334,7 @@ onSelect((id, opts) => {
   touch();
   if (opts.focus) focusObject(id);
 });
-$("tree").addEventListener("dblclick", (e) => { const r = e.target.closest("[data-id]"); if (r) focusObject(r.dataset.id); });
 
-// ------------------------------------------------------------------ дерево объектов
-const open = new Set(JSON.parse(ls.get("kentash.treeopen", '["face","truck","dw-pump"]')));
-let treeSig = "";
-$("tree-search").addEventListener("input", () => { treeSig = ""; touch(); });
-function renderTree() {
-  const q = $("tree-search").value.trim().toLowerCase();
-  const list = objects().filter((o) => !q || `${o.tag} ${o.name} ${o.id} ${KIND_RU[o.kind] || ""}`.toLowerCase().includes(q));
-  const sel = selection();
-  const sig = JSON.stringify([q, sel, list.map((o) => [o.id, status(o.id)[0], short(o.id)])]);
-  if (sig === treeSig) return;
-  treeSig = sig;
-  const sc = $("tree").scrollTop;
-  $("tree").innerHTML = GROUPS.map(([g, title]) => {
-    const items = list.filter((o) => o.group === g);
-    if (!items.length) return "";
-    const worst = items.some((o) => status(o.id)[0] === "alarm") ? "alarm" : items.some((o) => status(o.id)[0] === "warn") ? "warn" : "ok";
-    const isOpen = q || open.has(g);
-    return `<details class="tg" data-g="${g}" ${isOpen ? "open" : ""}><summary><span>${esc(title)}</span><span class="dot ${worst}"></span><span class="muted">${items.length}</span></summary>
-      ${items.map((o) => { const [lv, txt] = status(o.id); return `<div class="ti ${o.id === sel ? "sel" : ""}" data-id="${esc(o.id)}" title="${esc(o.name)} — ${esc(txt)}">
-        <span class="dot ${lv}"></span><span class="pos">${esc(o.tag || o.id)}</span><span class="nm">${esc(o.name)}</span><span class="sh">${esc(short(o.id))}</span></div>`; }).join("")}</details>`;
-  }).join("") || `<div class="empty">Ничего не найдено.</div>`;
-  $("tree").scrollTop = sc;
-  $("tree").querySelectorAll("details.tg").forEach((d) => d.addEventListener("toggle", () => {
-    if (d.open) open.add(d.dataset.g); else open.delete(d.dataset.g);
-    ls.set("kentash.treeopen", JSON.stringify([...open]));
-  }));
-  $("tree").querySelectorAll(".ti").forEach((r) => (r.onclick = () => select(r.dataset.id, { force: true })));
-}
-
-// ------------------------------------------------------------------ персонал и тревоги слева
-let staffSig = "";
-function renderStaff() {
-  const P = people();
-  $("staff-count").textContent = P.length;
-  if (leftTab !== "staff") return;
-  const sel = selection();
-  const sig = JSON.stringify([sel, P.map((p) => [p.id, p.f.zone, Math.round(p.f.speed), p.f.in_blast_zone])]);
-  if (sig === staffSig) return; staffSig = sig;
-  const by = {};
-  for (const p of P) (by[p.brigade] ||= []).push(p);
-  $("staff-list").innerHTML = Object.entries(by).map(([b, l]) => `<div class="osh">${esc(b)} · ${l.length}</div>` + l.map((p) =>
-    `<div class="st-row ${p.id === sel ? "sel" : ""}" data-id="${p.id}"><span class="dot ${p.f.in_blast_zone ? "alarm" : p.f.battery < 20 ? "warn" : "ok"}"></span><b>${esc(p.tag.replace("GPS-", "№ "))}</b>
-     <span>${esc(p.role)}<br><small>${esc(p.f.zone || "")}${p.f.vehicle ? " · " + esc(p.f.vehicle) : ""}</small></span><small>${num(p.f.speed, 0)} км/ч</small></div>`).join("")).join("");
-  $("staff-list").querySelectorAll(".st-row").forEach((r) => (r.onclick = () => select(r.dataset.id, { force: true, focus: true })));
-}
 let alSig = "";
 function renderAlarms() {
   const items = [];
@@ -378,11 +349,12 @@ function renderAlarms() {
     swCounts.__all = (swCounts.__all || 0) + 1; if (i.lv === "alarm") swCounts.__alarm = 1;
   }
   syncSwitch();
-  const c = $("alarm-count"); c.textContent = items.length; c.classList.toggle("alarm", items.some((i) => i.lv === "alarm"));
-  if (leftTab !== "alarms") return;
+  const c = $("alarm-count"); c.textContent = items.length; c.hidden = !items.length; c.classList.toggle("alarm", items.some((i) => i.lv === "alarm"));
+  $("bell").classList.toggle("alarm", items.some((i) => i.lv === "alarm")); $("bell").classList.toggle("warn", items.length > 0);
+  if ($("bell-panel").hidden) return;
   const sig = JSON.stringify(items); if (sig === alSig) return; alSig = sig;
   $("alarms").innerHTML = items.map((i) => `<div class="st-row" data-id="${esc(i.id)}"><span class="dot ${i.lv}"></span><b>${esc(i.tag)}</b><span>${esc(i.name)}<br><small>${esc(i.txt)}</small></span><span></span></div>`).join("") || `<div class="empty">Активных тревог нет.</div>`;
-  $("alarms").querySelectorAll(".st-row").forEach((r) => (r.onclick = () => select(r.dataset.id, { force: true, focus: true })));
+  $("alarms").querySelectorAll(".st-row").forEach((r) => (r.onclick = () => { $("bell-panel").hidden = true; select(r.dataset.id, { force: true, focus: true }); }));
 }
 
 // ------------------------------------------------------------------ шапка и KPI
@@ -399,7 +371,7 @@ function header() {
   const b = $("alarm-banner");
   if (ev || act.length) {
     b.hidden = false; b.className = ev ? "alarm" : "";
-    b.textContent = (ev ? `⛔ ${ev.t}: ${ev.text}` : "") + (act.length ? `${ev ? "  ·  " : ""}Активные сценарии: ${act.map((a) => a.title).join(", ")}` : "");
+    b.textContent = (ev ? `⛔ ${ev.t}: ${ev.text}` : "") + (act.length ? `${ev ? "  ·  " : ""}Активные ситуации: ${act.map((a) => a.title).join(", ")}` : "");
   } else b.hidden = true;
   $("log-count").textContent = json(v("mine", "events"), []).length;
 }
@@ -412,8 +384,8 @@ function renderScen() {
   catalog ||= json(T["scenario-engine"]?.attributes?.catalog, []);
   const act = json(v("scenario-engine", "active"), []);
   const sig = JSON.stringify(act); if (sig === scenSig && host.childElementCount) return; scenSig = sig;
-  host.innerHTML = `<div class="hub-bar"><h2 class="hub-h">Сценарии «что если»</h2><span class="muted">кнопка пишет команду в двойник <b>control</b> в Ditto; симулятор получает событие из платформы</span><span class="spacer"></span>
-      <button class="btn danger" id="reset-all">Отменить все сценарии</button></div>
+  host.innerHTML = `<div class="hub-bar"><h2 class="hub-h">Ситуации на руднике</h2><span class="muted">«Включить» меняет живой рудник сейчас, последствия видны на всех экранах. Чтобы узнать последствия заранее, ничего не меняя, используйте вкладку «Прогноз «что если»»</span><span class="spacer"></span>
+      <button class="btn danger" id="reset-all">Отменить все ситуации</button></div>
     ${act.length ? `<div class="box"><h3>Активные</h3>${act.map((a) => `<div class="row sp" style="margin-bottom:4px"><span class="chip warn">${esc(a.title)}</span><span class="muted">${esc(Object.entries(a.params || {}).map(([k, x]) => `${k}: ${x}`).join(", "))}</span>
       <button class="btn sm" data-off='${esc(JSON.stringify(a))}'>Отменить</button></div>`).join("")}</div>` : ""}
     <div class="grid3">${catalog.map((c) => `<div class="scen" data-id="${c.id}"><h4>${esc(c.title)}</h4><p>${esc(c.about)}</p><div class="row">
@@ -438,10 +410,11 @@ function renderLog() {
 // ------------------------------------------------------------------ цикл
 let lastRight = "";
 function tickUI() {
+  watchForecast($("fc-pill"), forecastDone);
   const dirty = isDirty();
   if (!dirty && !["maint", "dw", "dwhmi", "pit", "flot", "flothi", "thk", "thkhmi", "tls", "tlshmi", "tsf", "tsfhmi", "ws", "wshmi", "fs", "fshmi", "gpp", "gpphmi", "crush", "crushhmi", "stock", "stockhmi", "grind", "grindhmi"].includes(view)) return;
   header();
-  renderTree(); renderStaff(); renderAlarms();
+  renderAlarms();
   const sel = selection();
   // правая панель обновляется по данным выбранного объекта
   const f = JSON.stringify([sel, sideTab, T[sel]?.features, v("dewatering", "mode"), v("maintenance", "asset_state") && sideTab !== "obj" ? v("maintenance", "rev") : 0]);
@@ -484,6 +457,7 @@ function tickUI() {
   if (view.startsWith("mod:")) renderModule($("win-host"), modId, ctx);
   else if (view === "mods") { if (!$("mods-host").childElementCount) renderHub($("mods-host"), ctx); }
   else if (view === "scen") renderScen();
+  else if (view === "fcst") fcUI.update();
   else if (view === "log") renderLog();
   else if (view === "maint") maint.update();
 }
@@ -509,7 +483,7 @@ document.querySelectorAll("[data-pcolor]").forEach((x) => x.addEventListener("cl
 
 // ------------------------------------------------------------------ запуск
 const startView = params.get("view") || ls.get("kentash.view", "plan");
-setView(startView === "dw" || startView === "dwhmi" || startView === "flot" || startView === "flothi" || startView === "thk" || startView === "thkhmi" || ["tls", "tlshmi", "tsf", "tsfhmi"].includes(startView) || ["ws", "wshmi", "fs", "fshmi", "gpp", "gpphmi"].includes(startView) || startView === "crush" || startView === "crushhmi" || startView === "dump" || startView === "rom" || startView === "stock" || startView === "stockhmi" || startView === "grind" || startView === "grindhmi" || startView === "pit" || startView === "plan" || startView === "mods" || startView === "maint" || startView === "scen" || startView === "log" || startView.startsWith("mod:") ? startView : "plan");
+setView(startView === "dw" || startView === "dwhmi" || startView === "flot" || startView === "flothi" || startView === "thk" || startView === "thkhmi" || ["tls", "tlshmi", "tsf", "tsfhmi"].includes(startView) || ["ws", "wshmi", "fs", "fshmi", "gpp", "gpphmi"].includes(startView) || startView === "crush" || startView === "crushhmi" || startView === "dump" || startView === "rom" || startView === "stock" || startView === "stockhmi" || startView === "grind" || startView === "grindhmi" || startView === "pit" || startView === "plan" || startView === "mods" || startView === "maint" || startView === "scen" || startView === "fcst" || startView === "log" || startView.startsWith("mod:") ? startView : "plan");
 if (params.get("tab")) setSide(params.get("tab"));
 (async () => {
   for (;;) {

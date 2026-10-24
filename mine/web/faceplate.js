@@ -60,7 +60,7 @@ function fmt(k, x, unit) {
 
 export function renderFaceplate(host, id) {
   const t = T[id];
-  if (!id || !t) { host.innerHTML = `<div class="empty">Выберите объект на плане, в 3D-модели или в дереве слева.</div>`; return; }
+  if (!id || !t) { host.innerHTML = `<div class="empty">Выберите объект на плане или в 3D-модели.</div>`; return; }
   if(t.attributes.kind === "haul-truck"){renderTruckDashboard(host,id);return;}
   const a = t.attributes, f = t.features, [lv, txt] = status(id);
   const kind = KIND_RU[a.kind] || a.kind;
@@ -209,7 +209,7 @@ export function renderControls(host, id, ctx) {
 
 function controlsGlobal() {
   const act = json(v("scenario-engine", "active"), []);
-  return `<div class="fp"><h3>Рудник в целом</h3><div class="muted">Скорость модельного времени и сценарии «что если» — в шапке и на вкладке «Сценарии».</div>
+  return `<div class="fp"><h3>Рудник в целом</h3><div class="muted">Скорость модельного времени и ситуации — на вкладке «Ситуации», прогноз последствий — на вкладке «Прогноз «что если»».</div>
     ${act.length ? `<div style="margin-top:6px">${act.map((s) => `<div class="row sp"><span class="chip warn">${esc(s.title)}</span></div>`).join("")}</div><div class="row" style="margin-top:8px"><button class="btn danger" data-gact="reset">Отменить все сценарии</button></div>` : ""}</div>`;
 }
 function bindGlobal(host) { host.querySelectorAll("[data-gact=reset]").forEach((b) => (b.onclick = () => command({ cmd: "reset" }))); }

@@ -170,6 +170,15 @@ def fs_command(m, v):
 
 # ---- ГПП
 def gpp_available(m):
+    cache=getattr(m,'_avail_cache',None)                 # копия модели в прогнозе: схема ГПП считается раз за шаг
+    if cache is not None:
+        if cache[0]!=m.t:cache[0]=m.t;cache[1].clear()
+        r=cache[1].get('__gpp')
+        if r is None:r=cache[1]['__gpp']=_gpp_available(m)
+        return r
+    return _gpp_available(m)
+
+def _gpp_available(m):
     q=m.gpp["q"]
     lines=[bool(q[f"L{i}"] and EQ.available(m,f"gpp-line-{i}")) for i in (1,2)]
     # SV is a 6 kV bus tie, never an alternative 110 kV transformer supply.

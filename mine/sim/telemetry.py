@@ -7,6 +7,7 @@ class Publisher:
         self.client=client;self.ns=namespace;self.model=model;self.hz=max(1.,float(hz));self.tokens=0.;self.last_clock=None
         self.latest={};self.sent={};self.deadline={};self.status={};self.urgent=set();self.last_sample=-1e9;self.count=0
     def interval(self,name):
+        if name=='forecast':return 1.
         if name=='mine' or name.startswith(('truck-','shovel-','crew-')) or name in ('lv-foreman','stockpile-rom'):return 2.
         if name.startswith('p-'):return 10.
         if name in ('crusher','dewatering','mill-sag','mill-ball','flotation','flot-site','thk-store','thk-site','grind-site','power','pump-1','pump-2','pump-3','scenario-engine'):return 5.

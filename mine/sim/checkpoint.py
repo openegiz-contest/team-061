@@ -8,6 +8,11 @@ FORMAT=1
 log=logging.getLogger('kentash')
 class StateError(RuntimeError):pass
 class IncompatibleState(StateError):pass
+# Earlier geometries whose nodes, edges and equipment are kept unchanged in the current one (only additions):
+# the saved model stays valid. 4f1cd29… — before the blast parking spur J1–PARK was added.
+COMPATIBLE={'4f1cd2963bc9a31cee5823ed1685948a578bba030c6180e7060ebe56f5574ee9',
+            '8492ef6069ed5319bbfefe88be1541db29913e4d5afcb992de94703f9eb76a0a',   # промежуточные положения стоянки
+            '41a1f54722cacb5ab83bfb8e4b7d6fd26ba79f1221bc8558f4424cec113c634c'}
 ALLOWED={'model':{'Mine','Face','Shovel','Truck'},'random':{'Random'},'collections':{'deque'},'dewatering':{'Dewatering','Pump'},'personnel':{'Personnel','Mover','Person'},'crews':{'Walker'},'maintenance':{'Maint'},'workforce':{'Workforce'}}
 class Reader(pickle.Unpickler):
     def find_class(self,module,name):
@@ -41,7 +46,7 @@ class StateStore:
         finally:c.close()
     def decode(self,row):
         version,fingerprint,created,sim_t,seq,digest,blob=row
-        if version!=FORMAT or fingerprint!=self.fingerprint:raise IncompatibleState('Изменилась схема или геометрия модели: требуется миграция сохранения')
+        if version!=FORMAT or (fingerprint!=self.fingerprint and fingerprint not in COMPATIBLE):raise IncompatibleState('Изменилась схема или геометрия модели: требуется миграция сохранения')
         if hashlib.sha256(blob).hexdigest()!=digest:raise StateError('Повреждена контрольная сумма сохранения')
         raw=zlib.decompress(blob)
         if len(raw)>64*1024*1024:raise StateError('Слишком большое сохранение')

@@ -418,7 +418,8 @@ class Maint:
         st = self.st[aid]
         st["out"] = True
         if a["cls"]=="road":
-            segment=a["twin"][5:];st["road_owned"]=segment not in m.closed;m.closed.add(segment)
+            # Road works run under traffic (one lane, 15 km/h): closing the only ramp or service road for routine work would cut off the pit.
+            m.road_works=getattr(m,"road_works",set());m.road_works.add(a["twin"][5:])
         if s and s[0]=="equipment":m.equipment[s[1]]["out"]=True
         dur = (o or {}).get("dur_h", 8.0)
         if s and s[0] == "pump":
@@ -470,7 +471,9 @@ class Maint:
         s, st = a.get("src"), self.st[a["id"]]
         if st.get("fail") and o.get("status")!="Выполнен":return False
         st["out"] = False
-        if a["cls"]=="road" and st.pop("road_owned",False):m.closed.discard(a["twin"][5:])
+        if a["cls"]=="road":
+            if st.pop("road_owned",False):m.closed.discard(a["twin"][5:])          # legacy saves: closure made by the former rule
+            getattr(m,"road_works",set()).discard(a["twin"][5:])
         repair=o.get("type") in ("ТР","КР","Аварийный","По состоянию") and o.get("status")=="Выполнен"
         completed=o.get("status")=="Выполнен"
         if s and s[0]=="equipment":
