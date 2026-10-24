@@ -10,7 +10,7 @@ for i in $(seq 1 120); do
   prev=$n
   if (( stable >= 3 )); then
     echo "Рудник «Кенташ» запущен: двойников в Ditto — ${n}."
-    echo "  Стенд (3D-рудник, сценарии «что если», модули):  http://localhost:${port}"
+    echo "  Стенд (3D-рудник, ситуации, прогноз «что если», модули):  http://localhost:${port}"
     echo "  Grafana (дашборд «Рудник Кенташ», двойники):      http://localhost:$(grep -E '^GRAFANA_PORT=' deploy/compose/.env | cut -d= -f2 || echo 3000)"
     exit 0
   fi
